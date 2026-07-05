@@ -1,6 +1,7 @@
 import uuid
 import sqlite3
 import logging
+import os
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from datetime import datetime, timedelta
 
@@ -8,7 +9,9 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'SUPER_SECURE_KEY_2026'
-DB_NAME = "/home/bilal828/final_fix.db"
+
+# تم تعديل مسار قاعدة البيانات ليكون محلياً داخل مجلد المشروع
+DB_NAME = "final_fix.db"
 
 def get_db_connection():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -178,5 +181,6 @@ def verify():
     return jsonify({"status": False, "reason": "Limit Reached, Contact: @Najmul101"})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
     
