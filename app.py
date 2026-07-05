@@ -1,6 +1,7 @@
 import uuid
 import sqlite3
 import logging
+import os
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from datetime import datetime, timedelta
 
@@ -8,7 +9,9 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'SUPER_SECURE_KEY_2026'
-DB_NAME = "/home/nwu/final_fix.db"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, 'final_fix.db')
 
 def get_db_connection():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -137,10 +140,7 @@ def verify():
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
     except:
-        try:
-            expiry_dt = datetime.strptime(expiry.split()[0], '%Y-%m-%d')
-        except:
-            expiry_dt = datetime.now() + timedelta(days=365)
+        expiry_dt = datetime.now() + timedelta(days=365)
 
     if datetime.now() > expiry_dt:
         conn.close()
@@ -164,7 +164,7 @@ def verify():
                 "credit": "Give Feedback else Keys off",
                 "EXP": "9999-99-99 08:00:17",
                 "device": "999",
-                "MOD_NAME": "UnoShibai Hacks",
+                "MOD_NAME": "LOL Hacks",
                 "MOD_STATUS": "Cracked",
                 "FLOTING_TEST": "Give Feedback else Keys off",
                 "BHATIA_EXP": "9999-99-99 08:00:17",
@@ -177,4 +177,6 @@ def verify():
     return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
+    
