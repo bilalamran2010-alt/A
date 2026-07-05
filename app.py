@@ -94,31 +94,41 @@ def verify():
     device_id = data.get("device_id", "unknown").strip()
 
     if not key:
-        return jsonify({"status": False})
+        return jsonify({"status": False, "reason": "missing_key"})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
     
-    if row:
-        max_devs, devices_list, expiry, status = row
-        try:
-            expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
-            is_expired = datetime.now() > expiry_dt
-        except:
-            is_expired = True
+    if not row:
+        conn.close()
+        return jsonify({"status": False, "reason": "invalid_key"})
+
+    max_devs, devices_list, expiry, status = row
+    
+    if status == "banned":
+        conn.close()
+        return jsonify({"status": False, "reason": "banned"})
+
+    try:
+        expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
+        if datetime.now() > expiry_dt:
+            conn.close()
+            return jsonify({"status": False, "reason": "expired"})
+    except:
+        pass
             
-        if status != "banned" and not is_expired:
-            devices = [d for d in devices_list.split(",") if d]
-            if device_id in devices or len(devices) < max_devs:
-                if device_id not in devices:
-                    devices.append(device_id)
-                    conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
-                    conn.commit()
-                conn.close()
-                return jsonify({"status": True})
+    devices = [d for d in devices_list.split(",") if d]
+    
+    if device_id in devices or len(devices) < max_devs:
+        if device_id not in devices:
+            devices.append(device_id)
+            conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
+            conn.commit()
+        conn.close()
+        return jsonify({"status": True, "message": "success"})
 
     conn.close()
-    return jsonify({"status": False})
+    return jsonify({"status": False, "reason": "limit_reached"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
