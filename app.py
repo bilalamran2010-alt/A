@@ -117,17 +117,14 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
+    # Attempt to get data
     data = request.get_json(silent=True) or request.form.to_dict()
     
-    app.logger.info(f"Received raw data: {data}")
-    
-    key = data.get("key") or data.get("license") or data.get("code") or request.args.get("key")
+    # Simple extraction
+    key = data.get("key") or data.get("license") or data.get("code")
     
     if not key:
-        return jsonify({
-            "status": False,
-            "reason": f"Missing Key. Received: {str(data)}"
-        })
+        return jsonify({"status": False, "reason": "Missing Key"})
 
     key = key.strip()
     
@@ -136,10 +133,7 @@ def verify():
     conn.close()
 
     if not row:
-        return jsonify({
-            "status": False,
-            "reason": "Invalid License"
-        })
+        return jsonify({"status": False, "reason": "Invalid License"})
 
     max_devs, expiry = row
     
