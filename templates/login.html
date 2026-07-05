@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOL TEAM - Premium License System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #080710;
+            background: radial-gradient(circle at center, #110e26 0%, #06050b 100%);
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .brand-container {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .app-icon {
+            width: 75px;
+            height: 75px;
+            background: linear-gradient(135deg, #a044ff 0%, #00d2ff 100%);
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 20px auto;
+            box-shadow: 0 0 25px rgba(160, 68, 255, 0.4);
+            position: relative;
+        }
+
+        .app-icon svg {
+            width: 35px;
+            height: 35px;
+            fill: #ffffff;
+        }
+
+        .brand-container h1 {
+            font-size: 28px;
+            font-weight: 800;
+            color: #3ca2f4;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .brand-container p {
+            font-size: 13px;
+            color: #797693;
+            font-weight: 500;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 390px;
+            background: rgba(18, 16, 32, 0.6);
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 30px 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #9290a4;
+            margin-bottom: 10px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper svg {
+            position: absolute;
+            left: 14px;
+            width: 18px;
+            height: 18px;
+            fill: #595675;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 14px 14px 14px 45px;
+            background: rgba(10, 8, 20, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-field:focus {
+            border-color: rgba(0, 210, 255, 0.5);
+        }
+
+        .eye-icon {
+            position: absolute;
+            right: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .eye-icon svg {
+            position: static;
+            fill: #595675;
+        }
+
+        .btn-signin {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(90deg, #7c41ff 0%, #15b3ff 100%);
+            border: none;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 5px 20px rgba(124, 65, 255, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+        }
+
+        .btn-signin:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 7px 25px rgba(21, 179, 255, 0.4);
+        }
+
+        .divider-text {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #3b3852;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin: 25px 0 20px 0;
+            position: relative;
+        }
+
+        .support-area {
+            text-align: center;
+            font-size: 13px;
+            color: #9290a4;
+            font-weight: 500;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #00ffaa;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px #00ffaa;
+        }
+
+        .support-link {
+            color: #00d2ff;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .support-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-credits {
+            margin-top: 30px;
+            font-size: 11px;
+            color: #3f3c56;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="brand-container">
+        <div class="app-icon">
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 8zM4 19h16v2H4z"/></svg>
+        </div>
+        <h1>LOL TEAM</h1>
+        <p>Premium License System — Secure Access</p>
+    </div>
+
+    <div class="login-card">
+        <form method="POST" action="/">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-wrapper">
+                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5-4-8-4z"/></svg>
+                    <input type="text" id="username" name="username" class="input-field" placeholder="Enter username" required autocomplete="off">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-wrapper">
+                    <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                    <input type="password" id="password" name="password" class="input-field" placeholder="••••••••" required>
+                    <div class="eye-icon" onclick="togglePassword()">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-signin">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="white" style="position:static;"><path d="M10 17v-4H3v-2h7V7l5 5-5 5zm10 2H11v-2h9V5h-9V3h9c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2z"/></svg>
+                Sign In
+            </button>
+
+            <div class="divider-text">Secure Access</div>
+
+            <div class="support-area">
+                <span class="status-dot"></span>
+                <span>Buy account?</span>
+                <a href="https://t.me/Li_hw_ak" class="support-link" target="_blank">Contact Support</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="footer-credits">
+        © 2026 LOL TEAM — Premium License System
+    </div>
+
+    <script>
+        function togglePassword() {
+            var x = document.getElementById("password");
+            if (x.type === "password") {
+                x.type = "text";
+            } else {
+                x.type = "password";
+            }
+        }
+    </script>
+</body>
+</html>
