@@ -102,7 +102,7 @@ def logout():
     session.pop("logged_in", None)
     return redirect(url_for("login"))
 
-@app.route("/najmul", methods=["POST"])
+@app.route("/v", methods=["POST"])
 def verify():
     key = request.form.get("user_key")
     device_id = request.form.get("serial")
@@ -116,7 +116,6 @@ def verify():
 
     max_devs, devices_list, expiry, status = row
     
-    # Validate expiry
     try:
         if datetime.now() > datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S'):
             conn.close()
@@ -132,7 +131,6 @@ def verify():
             conn.commit()
         conn.close()
         
-        # The encrypted response required by the app
         ENCRYPTED_RESPONSE = "MBLuvMSQJ2y3RvmpOU+JwU6XWtLjMXc6JGJc00Bc7M22ICkME2TdoFgQz2ucgbFopccHlGECqTrBKN4xZ687C7hfSjmPS64xWC6mFwcwUL4gMB6xjx4syTTTrUFlcxpMmSBgxhZS2JfUv4RqEIH7V10chZf0F8j7o436QUET6f8LDs1fvbJgBJ8tZAcjlCS5UE14/am3acoeW0lTkkvRqIRRykCmBV2Ps/gmaDP7Foax51IVAfG9A1Yt5X6sKMhSaQLDg=="
         response = make_response(ENCRYPTED_RESPONSE)
         response.headers['Content-Type'] = 'text/plain; charset=utf-8'
