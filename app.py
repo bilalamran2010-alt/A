@@ -2,7 +2,7 @@ import uuid
 import sqlite3
 import logging
 import os
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, render_template, session, redirect, url_for
 from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
@@ -117,34 +117,32 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    app.logger.info(f"Request data: {request.get_data(as_text=True)}")
-    
     key = request.form.get("user_key")
     device_id = request.form.get("serial")
 
     if not key:
-        return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
+        return "Error: Missing parameters"
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
 
     if not row:
         conn.close()
-        return jsonify({"success": False, "status": "error", "message": "invalid_license"})
+        return "Error: Invalid license"
 
     max_devs, devices_list, expiry, status = row
+    
     if status == "banned":
         conn.close()
-        return jsonify({"success": False, "status": "banned", "message": "banned"})
+        return "Error: Banned"
 
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
+        if datetime.now() > expiry_dt:
+            conn.close()
+            return "Error: Expired"
     except:
-        expiry_dt = datetime.now() + timedelta(days=365)
-
-    if datetime.now() > expiry_dt:
-        conn.close()
-        return jsonify({"success": False, "status": "expired", "message": "expired"})
+        pass
 
     devices = [d for d in devices_list.split(",") if d]
     if device_id in devices or len(devices) < max_devs:
@@ -153,16 +151,10 @@ def verify():
             conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
-        return jsonify({
-            "success": True, 
-            "status": "OK", 
-            "message": "success",
-            "token": "112bf4774f3e2570e306df2f2de42a3a",
-            "modname": "UnoShibai Hacks"
-        })
+        return "Success: Autenticado com sucesso!"
 
     conn.close()
-    return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
+    return "Error: Limit reached"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
