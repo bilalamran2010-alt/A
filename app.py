@@ -67,7 +67,7 @@ def admin_page():
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
-                app.logger.error(f"Error generating key: {e}")
+                app.logger.error(f"Error: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -157,19 +157,19 @@ def verify():
         return jsonify({
             "status": True,
             "data": {
-                "real": "FreeFire-@Astraleroo-77265e3273a43591-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
+                "real": f"FreeFire-@Astraleroo-{key}-{device_id}",
                 "token": "112bf4774f3e2570e306df2f2de42a3a",
                 "modname": "UnoShibai Hacks",
                 "mod_status": "Cracked",
                 "credit": "Give Feedback else Keys off",
                 "EXP": "9999-99-99 08:00:17",
-                "device": "999",
-                "MOD_NAME": "LOL Hacks",
+                "device": device_id,
+                "MOD_NAME": "UnoShibai Hacks",
                 "MOD_STATUS": "Cracked",
                 "FLOTING_TEST": "Give Feedback else Keys off",
                 "BHATIA_EXP": "9999-99-99 08:00:17",
                 "BHATIA_SLOT": "1",
-                "rng": 46336742197
+                "rng": 29663074180
             }
         })
 
@@ -177,6 +177,6 @@ def verify():
     return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
     
