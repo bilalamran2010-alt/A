@@ -117,43 +117,48 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    data = request.get_json(silent=True) or request.form
-    key = data.get("key", "").strip()
+    data = request.get_json(silent=True) or request.form.to_dict()
     
-    # التحقق من وجود المفتاح فقط
+    app.logger.info(f"Received raw data: {data}")
+    
+    key = data.get("key") or data.get("license") or data.get("code") or request.args.get("key")
+    
     if not key:
-        return jsonify({"status": False, "reason": "Missing Key, Contact: @Rk28g"})
+        return jsonify({
+            "status": False,
+            "reason": f"Missing Key. Received: {str(data)}"
+        })
 
+    key = key.strip()
+    
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, expiry_date FROM keys WHERE key = ?", (key,)).fetchone()
     conn.close()
 
     if not row:
-        return jsonify({"status": False, "reason": "Invalid License, Contact: @Rk28g"})
+        return jsonify({
+            "status": False,
+            "reason": "Invalid License"
+        })
 
     max_devs, expiry = row
     
-    # رد ناجح دائماً
     return jsonify({
         "status": True,
         "data": {
             "real": "FreeFire-Najmul101-d057ae8b2897f6e4-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
             "token": "01c6af5d098eecd5d8c5ed8e11ccc686",
-            "modname": "Contact @blrxflash",
+            "modname": "Contact @Rk28g",
             "mod_status": "Safe",
-            "credit": "Give Feedback else Keys off",
+            "credit": "Give Feedback",
             "EXP": expiry,
             "device": "1000",
             "MOD_NAME": "Contact @Rk28g",
             "MOD_STATUS": "Safe",
-            "FLOTING_TEST": "Give Feedback else Keys off",
+            "FLOTING_TEST": "Safe",
             "BHATIA_EXP": expiry,
             "BHATIA_SLOT": str(max_devs),
             "rng": "1783254811"
         }
     })
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
     
