@@ -66,7 +66,7 @@ def admin_page():
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
-                app.logger.error(f"Error generating key: {e}")
+                app.logger.error(f"Error: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -165,6 +165,6 @@ def verify():
     return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
     
