@@ -67,7 +67,7 @@ def admin_page():
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
-                app.logger.error(f"Error: {e}")
+                app.logger.error(f"Error generating key: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -119,8 +119,8 @@ def logout():
 @app.route("/v", methods=["POST"])
 def verify():
     data = request.get_json(silent=True) or request.form
-    key = data.get("key", "").strip()
-    device_id = data.get("device_id", "unknown").strip()
+    key = data.get("key") or data.get("k") or ""
+    device_id = data.get("device_id") or data.get("id") or "unknown"
 
     if not key:
         return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
