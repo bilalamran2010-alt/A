@@ -115,12 +115,12 @@ def logout():
     session.pop("logged_in", None)
     return redirect(url_for("login"))
 
-@app.route("/v", methods=["POST", "GET"])
+@app.route("/v", methods=["POST"])
 def verify():
     app.logger.info(f"Request data: {request.get_data(as_text=True)}")
-    data = request.get_json(silent=True) or request.form.to_dict() or request.values.to_dict()
-    key = data.get("key") or data.get("k") or data.get("code") or ""
-    device_id = data.get("device_id") or data.get("id") or "unknown"
+    
+    key = request.form.get("user_key")
+    device_id = request.form.get("serial")
 
     if not key:
         return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
@@ -165,5 +165,6 @@ def verify():
     return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080, threaded=True)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port, threaded=True)
     
