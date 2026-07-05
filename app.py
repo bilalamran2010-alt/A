@@ -89,12 +89,15 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    data = request.get_json(silent=True) or request.form.to_dict() or request.get_json(force=True)
-    key = data.get("key", "").strip()
-    device_id = data.get("device_id", "unknown").strip()
+    app.logger.info(f"Request Data: {request.data}")
+    app.logger.info(f"Form Data: {request.form}")
+    
+    data = request.get_json(silent=True) or request.form.to_dict()
+    key = data.get("key") or request.args.get("key")
+    device_id = data.get("device_id") or request.args.get("device_id")
 
     if not key:
-        return jsonify({"status": "error", "message": "missing_parameters"})
+        return jsonify({"status": "error", "message": "missing_parameters", "received": data})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
