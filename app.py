@@ -107,48 +107,34 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) or request.form.to_dict() or request.get_json(force=True)
     key = data.get("key", "").strip()
     device_id = data.get("device_id", "unknown").strip()
 
     if not key:
-        return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
+        return jsonify({"status": False})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
-
-    if not row:
-        conn.close()
-        return jsonify({"success": False, "status": "error", "message": "invalid_license"})
-
-    max_devs, devices_list, expiry, status = row
     
-    if status == "banned":
-        conn.close()
-        return jsonify({"success": False, "status": "banned", "message": "banned"})
-
-    try:
-        expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
-    except:
-        expiry_dt = datetime.strptime(expiry.split()[0], '%Y-%m-%d')
-
-    if datetime.now() > expiry_dt:
-        conn.close()
-        return jsonify({"success": False, "status": "expired", "message": "expired"})
-
-    devices = [d for d in devices_list.split(",") if d]
-    if device_id in devices or len(devices) < max_devs:
-        if device_id not in devices:
-            devices.append(device_id)
-            conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
-            conn.commit()
-        conn.close()
-        return jsonify({"success": True, "status": "OK", "message": "success"})
+    if row:
+        max_devs, devices_list, expiry, status = row
+        try:
+            expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
+            is_expired = datetime.now() > expiry_dt
+        except:
+            is_expired = True
+            
+        if status != "banned" and not is_expired:
+            devices = [d for d in devices_list.split(",") if d]
+            if device_id in devices or len(devices) < max_devs:
+                if device_id not in devices:
+                    devices.append(device_id)
+                    conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
+                    conn.commit()
+                conn.close()
+                return jsonify({"status": True})
 
     conn.close()
-    return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    return jsonify({"status": False})
     
