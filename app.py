@@ -67,7 +67,6 @@ def admin_page():
                 app.logger.error(f"Error generating key: {e}")
 
         elif action == "reset_hwid":
-            # Ø§Ù„ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø¬Ø¯ÙŠØ¯ Ù‡Ù†Ø§: ØªØµÙÙŠØ± Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø£Ø¬Ù‡Ø²Ø© Ù„Ù„Ù…ÙØªØ§Ø­
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
             conn.commit()
 
@@ -116,25 +115,28 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    # ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ Ø§Ù„Ø®Ø§Øµ Ø¨Ùƒ (ØªÙ… Ø§Ù„Ø¥Ø¨Ù‚Ø§Ø¡ Ø¹Ù„ÙŠÙ‡ ÙƒÙ…Ø§ Ù‡Ùˆ)
     data = request.get_json(silent=True) or request.form
     key = data.get("key", "").strip()
     device_id = data.get("device_id", "unknown").strip()
 
-    if not key:
-        return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
+    if not key or not device_id:
+        return jsonify({
+            "status": False,
+            "reason": "Bad Parameter, Contact: @Najmul101"
+        })
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
 
     if not row:
         conn.close()
-        return jsonify({"success": False, "status": "error", "message": "invalid_license"})
+        return jsonify({"status": False, "reason": "Invalid License, Contact: @Najmul101"})
 
     max_devs, devices_list, expiry, status = row
+    
     if status == "banned":
         conn.close()
-        return jsonify({"success": False, "status": "banned", "message": "banned"})
+        return jsonify({"status": False, "reason": "Banned, Contact: @Najmul101"})
 
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
@@ -143,7 +145,7 @@ def verify():
 
     if datetime.now() > expiry_dt:
         conn.close()
-        return jsonify({"success": False, "status": "expired", "message": "expired"})
+        return jsonify({"status": False, "reason": "Expired, Contact: @Najmul101"})
 
     devices = [d for d in devices_list.split(",") if d]
     if device_id in devices or len(devices) < max_devs:
@@ -152,10 +154,29 @@ def verify():
             conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
-        return jsonify({"success": True, "status": "OK", "message": "success"})
+        
+        return jsonify({
+            "status": True,
+            "data": {
+                "real": "FreeFire-Najmul101-d057ae8b2897f6e4-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
+                "token": "01c6af5d098eecd5d8c5ed8e11ccc686",
+                "modname": "Contact @blrxflash",
+                "mod_status": "Safe",
+                "credit": "Give Feedback else Keys off",
+                "EXP": expiry,
+                "device": str(len(devices)),
+                "MOD_NAME": "Contact @blrxflash",
+                "MOD_STATUS": "Safe",
+                "FLOTING_TEST": "Give Feedback else Keys off",
+                "BHATIA_EXP": expiry,
+                "BHATIA_SLOT": str(max_devs),
+                "rng": "1783254811"
+            }
+        })
 
     conn.close()
-    return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
+    return jsonify({"status": False, "reason": "Limit Reached, Contact: @Najmul101"})
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
+    
