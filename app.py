@@ -91,23 +91,13 @@ def admin_page():
     for r in rows:
         key_name, max_dev, devices_list, expiry_str = r
         used_dev = len([d for d in devices_list.split(',') if d])
-
         try:
             expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
             time_left = expiry_dt - datetime.now()
-            if time_left.total_seconds() > 0:
-                duration_string = f"{time_left.days}d {time_left.seconds // 3600}h {(time_left.seconds % 3600) // 60}m"
-            else:
-                duration_string = "Expired"
+            duration_string = f"{time_left.days}d {time_left.seconds // 3600}h" if time_left.total_seconds() > 0 else "Expired"
         except:
             duration_string = "Error"
-
-        keys_list.append({
-            "name": key_name,
-            "devices": max_dev,
-            "used": used_dev,
-            "duration_string": duration_string
-        })
+        keys_list.append({"name": key_name, "devices": max_dev, "used": used_dev, "duration_string": duration_string})
 
     return render_template("admin.html", keys=keys_list)
 
@@ -118,8 +108,11 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    data = request.get_json(silent=True) or request.form
-    key = data.get("key") or data.get("k") or ""
+    # Debug print to Railway logs
+    app.logger.info(f"Full Request Data: {request.values.to_dict()}")
+    
+    data = request.values
+    key = data.get("key") or data.get("k") or data.get("code") or ""
     device_id = data.get("device_id") or data.get("id") or "unknown"
 
     if not key:
