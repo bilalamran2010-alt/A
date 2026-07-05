@@ -94,40 +94,32 @@ def verify():
     device_id = data.get("device_id", "unknown").strip()
 
     if not key:
-        return jsonify({"status": True, "reason": "debug_missing_key"})
+        return jsonify({"status": "error", "message": "missing_parameters"})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
     
     if not row:
         conn.close()
-        return jsonify({"status": True, "reason": "debug_invalid_key"})
+        return jsonify({"status": "error", "message": "invalid_key"})
 
     max_devs, devices_list, expiry, status = row
     
-    if status == "banned":
-        conn.close()
-        return jsonify({"status": True, "reason": "debug_banned"})
-
-    try:
-        expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
-        if datetime.now() > expiry_dt:
-            conn.close()
-            return jsonify({"status": True, "reason": "debug_expired"})
-    except:
-        pass
-            
-    devices = [d for d in devices_list.split(",") if d]
+    response_data = {
+        "status": True,
+        "data": {
+            "real": f"Authorized-{key}",
+            "token": "valid_session_token",
+            "modname": "UnoShibai Hacks",
+            "mod_status": "Cracked",
+            "credit": "Success",
+            "EXP": expiry,
+            "device": device_id
+        }
+    }
     
-    if device_id in devices or len(devices) < max_devs:
-        if device_id not in devices:
-            devices.append(device_id)
-            conn.commit()
-        conn.close()
-        return jsonify({"status": True, "message": "success"})
-
     conn.close()
-    return jsonify({"status": True, "reason": "debug_limit_reached"})
+    return jsonify(response_data)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
