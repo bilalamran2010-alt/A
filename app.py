@@ -118,14 +118,16 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
+
     data = request.get_json(silent=True) or request.form
     key = data.get("key", "").strip()
-    device_id = data.get("device_id", "unknown").strip()
+    
+    device_id = data.get("device_id", "1000").strip() 
 
-    if not key or not device_id:
+    if not key:
         return jsonify({
             "status": False,
-            "reason": "Bad Parameter, Contact: @Najmul101"
+            "reason": "Missing Key, Contact: @Rk28g"
         })
 
     conn = get_db_connection()
@@ -133,7 +135,7 @@ def verify():
 
     if not row:
         conn.close()
-        return jsonify({"status": False, "reason": "Invalid License, Contact: @Najmul101"})
+        return jsonify({"status": False, "reason": "Invalid License, Contact: @Rk28g"})
 
     max_devs, devices_list, expiry, status = row
     
@@ -148,39 +150,33 @@ def verify():
 
     if datetime.now() > expiry_dt:
         conn.close()
-        return jsonify({"status": False, "reason": "Expired, Contact: @Najmul101"})
+        return jsonify({"status": False, "reason": "Expired, Contact: @Rk28g"})
 
     devices = [d for d in devices_list.split(",") if d]
-    if device_id in devices or len(devices) < max_devs:
-        if device_id not in devices:
-            devices.append(device_id)
-            conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
-            conn.commit()
-        conn.close()
-        
-        return jsonify({
-            "status": True,
-            "data": {
-                "real": "FreeFire-Najmul101-d057ae8b2897f6e4-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
-                "token": "01c6af5d098eecd5d8c5ed8e11ccc686",
-                "modname": "Contact @blrxflash",
-                "mod_status": "Safe",
-                "credit": "Give Feedback else Keys off",
-                "EXP": expiry,
-                "device": str(len(devices)),
-                "MOD_NAME": "Contact @blrxflash",
-                "MOD_STATUS": "Safe",
-                "FLOTING_TEST": "Give Feedback else Keys off",
-                "BHATIA_EXP": expiry,
-                "BHATIA_SLOT": str(max_devs),
-                "rng": "1783254811"
-            }
-        })
-
+    
+    if device_id not in devices and len(devices) < max_devs:
+        devices.append(device_id)
+        conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
+        conn.commit()
+    
     conn.close()
-    return jsonify({"status": False, "reason": "Limit Reached, Contact: @Najmul101"})
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    
+    return jsonify({
+        "status": True,
+        "data": {
+            "real": "FreeFire-Najmul101-d057ae8b2897f6e4-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
+            "token": "01c6af5d098eecd5d8c5ed8e11ccc686",
+            "modname": "Contact @blrxflash",
+            "mod_status": "Safe",
+            "credit": "Give Feedback else Keys off",
+            "EXP": expiry,
+            "device": str(len(devices)),
+            "MOD_NAME": "Contact @Rk28g",
+            "MOD_STATUS": "Safe",
+            "FLOTING_TEST": "Give Feedback else Keys off",
+            "BHATIA_EXP": expiry,
+            "BHATIA_SLOT": str(max_devs),
+            "rng": "1783254811"
+        }
+    })
     
