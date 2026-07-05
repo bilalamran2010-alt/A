@@ -91,10 +91,8 @@ def logout():
 def verify():
     data = request.get_json(silent=True) or request.form.to_dict() or request.get_json(force=True)
     
-    # استخراج البيانات من كائن received كما هو موضح في 61692.jpg
-    received_data = data.get("received", {})
-    key = received_data.get("user_key")
-    device_id = received_data.get("serial")
+    key = data.get("user_key") or (data.get("received") and data["received"].get("user_key"))
+    device_id = data.get("serial") or (data.get("received") and data["received"].get("serial"))
 
     if not key:
         return jsonify({"status": "error", "message": "missing_parameters"})
@@ -111,13 +109,19 @@ def verify():
     response_data = {
         "status": True,
         "data": {
-            "real": f"Authorized-{key}",
-            "token": "valid_session_token",
+            "real": f"FreeFire-Astraleroo-{key}",
+            "token": "112bf4774f3e2570e306df2f2de42a3a",
             "modname": "UnoShibai Hacks",
             "mod_status": "Cracked",
-            "credit": "Success",
+            "credit": "Give Feedback else Keys off",
             "EXP": expiry,
-            "device": device_id
+            "device": "999",
+            "MOD_NAME": "UnoShibai Hacks",
+            "MOD_STATUS": "Cracked",
+            "FLOTING_TEST": "Give Feedback else Keys off",
+            "BHATIA_EXP": expiry,
+            "BHATIA_SLOT": "1",
+            "rng": 46336742197
         }
     }
     
