@@ -2,14 +2,16 @@ import uuid
 import sqlite3
 import logging
 import os
-from flask import Flask, request, render_template, session, redirect, url_for, make_response
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from datetime import datetime, timedelta
 
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'SUPER_SECURE_KEY_2026'
 
+# Database configuration
 DB_NAME = 'final_fix.db'
 
 def get_db_connection():
@@ -65,7 +67,7 @@ def admin_page():
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
-                logging.error(f"Error: {e}")
+                logging.error(f"Error generating key: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -104,40 +106,57 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    key = request.form.get("user_key")
-    device_id = request.form.get("serial")
+    key = request.form.get("key")
+    serial = request.form.get("serial")
     
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
     
     if not row:
         conn.close()
-        return "Error: Invalid"
+        # Error format from 61637.jpg
+        return jsonify({"status": False, "reason": "Bad Parameter, Contact: @Najmul101"})
 
     max_devs, devices_list, expiry, status = row
     
+    # Check expiry
     try:
         if datetime.now() > datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S'):
             conn.close()
-            return "Error: Expired"
+            return jsonify({"status": False, "reason": "Expired License"})
     except:
         pass
 
     devices = [d for d in devices_list.split(",") if d]
-    if device_id in devices or len(devices) < max_devs:
-        if device_id not in devices:
-            devices.append(device_id)
+    if serial in devices or len(devices) < max_devs:
+        if serial not in devices:
+            devices.append(serial)
             conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
         
-        ENCRYPTED_RESPONSE = "MBLuvMSQJ2y3RvmpOU+JwU6XWtLjMXc6JGJc00Bc7M22ICkME2TdoFgQz2ucgbFopccHlGECqTrBKN4xZ687C7hfSjmPS64xWC6mFwcwUL4gMB6xjx4syTTTrUFlcxpMmSBgxhZS2JfUv4RqEIH7V10chZf0F8j7o436QUET6f8LDs1fvbJgBJ8tZAcjlCS5UE14/am3acoeW0lTkkvRqIRRykCmBV2Ps/gmaDP7Foax51IVAfG9A1Yt5X6sKMhSaQLDg=="
-        response = make_response(ENCRYPTED_RESPONSE)
-        response.headers['Content-Type'] = 'text/plain; charset=utf-8'
-        return response
+        # Success structure from 61636.jpg
+        return jsonify({
+            "status": True,
+            "data": {
+                "real": "FreeFire-Najmul101-d057ae8b2897f6e4-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
+                "token": "01c6af5d098eecd5d8c5ed8e11ccc686",
+                "modname": "Contact @blrxflash",
+                "mod_status": "Safe",
+                "credit": "Give Feedback else Keys off",
+                "EXP": "2026-07-07 23:45:18",
+                "device": serial,
+                "MOD_NAME": "Contact @blrxflash",
+                "MOD_STATUS": "Safe",
+                "FLOTING_TEST": "Give Feedback else Keys off",
+                "BHATIA_EXP": "2026-07-07 23:45:18",
+                "BHATIA_SLOT": serial,
+                "rng": "1783254811"
+            }
+        })
 
     conn.close()
-    return "Error: Limit Reached"
+    return jsonify({"status": False, "reason": "Limit Reached"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
