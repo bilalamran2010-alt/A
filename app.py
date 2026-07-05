@@ -46,7 +46,6 @@ def admin_page():
         return redirect(url_for("login"))
 
     conn = get_db_connection()
-
     if request.method == "POST":
         action = request.form.get("action")
         key_name = request.form.get("key_name")
@@ -57,58 +56,26 @@ def admin_page():
             hours = int(request.form.get("hours", 0))
             minutes = int(request.form.get("minutes", 0))
             max_d = int(request.form.get("max_devices", 1))
-
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
-
-            try:
-                conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
-                             (name, max_d, expiry_date))
-                conn.commit()
-            except Exception as e:
-                app.logger.error(f"Error generating key: {e}")
-
+            conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
+                         (name, max_d, expiry_date))
+            conn.commit()
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
             conn.commit()
-
         elif action == "delete_key":
             conn.execute("DELETE FROM keys WHERE key = ?", (key_name,))
             conn.commit()
-
         elif action == "clear_all":
             conn.execute("DELETE FROM keys")
             conn.commit()
-
         conn.close()
         return redirect(url_for("admin_page"))
 
     rows = conn.execute("SELECT key, max_devices, devices_list, expiry_date FROM keys").fetchall()
     conn.close()
-
-    keys_list = []
-    for r in rows:
-        key_name, max_dev, devices_list, expiry_str = r
-        used_dev = len([d for d in devices_list.split(',') if d])
-
-        try:
-            expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
-            time_left = expiry_dt - datetime.now()
-            if time_left.total_seconds() > 0:
-                duration_string = f"{time_left.days}d {time_left.seconds // 3600}h {(time_left.seconds % 3600) // 60}m"
-            else:
-                duration_string = "Expired"
-        except:
-            duration_string = "Error"
-
-        keys_list.append({
-            "name": key_name,
-            "devices": max_dev,
-            "used": used_dev,
-            "duration_string": duration_string
-        })
-
-    return render_template("admin.html", keys=keys_list)
+    return render_template("admin.html", keys=rows)
 
 @app.route("/logout")
 def logout():
@@ -126,7 +93,6 @@ def verify():
 
     key = key.strip()
     conn = get_db_connection()
-    
     row = conn.execute("SELECT max_devices, devices_list, expiry_date FROM keys WHERE key = ?", (key,)).fetchone()
     
     if not row:
@@ -155,8 +121,9 @@ def verify():
         conn.commit()
     
     conn.close()
+    return jsonify({"status": True})
 
-    return jsonify({
-        "status": True
-    })
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
     
