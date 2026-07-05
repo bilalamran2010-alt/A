@@ -5,13 +5,11 @@ import os
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from datetime import datetime, timedelta
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'SUPER_SECURE_KEY_2026'
 
-# Database configuration
 DB_NAME = 'final_fix.db'
 
 def get_db_connection():
@@ -54,20 +52,14 @@ def admin_page():
 
         if action == "generate":
             name = key_name or f"KEY-{uuid.uuid4().hex[:8].upper()}"
-            days = int(request.form.get("days", 0))
-            hours = int(request.form.get("hours", 0))
-            minutes = int(request.form.get("minutes", 0))
-            max_d = int(request.form.get("max_devices", 1))
-
-            total_duration = timedelta(days=days, hours=hours, minutes=minutes)
-            expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
-            
+            days = int(request.form.get("days", 30))
+            expiry_date = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
             try:
                 conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
-                             (name, max_d, expiry_date))
+                             (name, 1, expiry_date))
                 conn.commit()
             except Exception as e:
-                logging.error(f"Error generating key: {e}")
+                logging.error(f"Error: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -88,14 +80,7 @@ def admin_page():
     keys_list = []
     for r in rows:
         key_name, max_dev, devices_list, expiry_str = r
-        used_dev = len([d for d in devices_list.split(',') if d])
-        try:
-            expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
-            time_left = expiry_dt - datetime.now()
-            duration = f"{time_left.days}d {time_left.seconds // 3600}h" if time_left.total_seconds() > 0 else "Expired"
-        except:
-            duration = "Error"
-        keys_list.append({"name": key_name, "devices": max_dev, "used": used_dev, "duration": duration})
+        keys_list.append({"name": key_name, "devices": max_dev, "expiry": expiry_str})
 
     return render_template("admin.html", keys=keys_list)
 
@@ -107,56 +92,34 @@ def logout():
 @app.route("/v", methods=["POST"])
 def verify():
     key = request.form.get("key")
-    serial = request.form.get("serial")
+    hwid = request.form.get("hwid") or request.form.get("serial") or request.form.get("device")
     
     conn = get_db_connection()
-    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
+    row = conn.execute("SELECT status FROM keys WHERE key = ?", (key,)).fetchone()
     
     if not row:
         conn.close()
-        # Error format from 61637.jpg
         return jsonify({"status": False, "reason": "Bad Parameter, Contact: @Najmul101"})
 
-    max_devs, devices_list, expiry, status = row
-    
-    # Check expiry
-    try:
-        if datetime.now() > datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S'):
-            conn.close()
-            return jsonify({"status": False, "reason": "Expired License"})
-    except:
-        pass
-
-    devices = [d for d in devices_list.split(",") if d]
-    if serial in devices or len(devices) < max_devs:
-        if serial not in devices:
-            devices.append(serial)
-            conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
-            conn.commit()
-        conn.close()
-        
-        # Success structure from 61636.jpg
-        return jsonify({
-            "status": True,
-            "data": {
-                "real": "FreeFire-Najmul101-d057ae8b2897f6e4-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
-                "token": "01c6af5d098eecd5d8c5ed8e11ccc686",
-                "modname": "Contact @blrxflash",
-                "mod_status": "Safe",
-                "credit": "Give Feedback else Keys off",
-                "EXP": "2026-07-07 23:45:18",
-                "device": serial,
-                "MOD_NAME": "Contact @blrxflash",
-                "MOD_STATUS": "Safe",
-                "FLOTING_TEST": "Give Feedback else Keys off",
-                "BHATIA_EXP": "2026-07-07 23:45:18",
-                "BHATIA_SLOT": serial,
-                "rng": "1783254811"
-            }
-        })
-
     conn.close()
-    return jsonify({"status": False, "reason": "Limit Reached"})
+    return jsonify({
+        "status": True,
+        "data": {
+            "real": "FreeFire-Najmul101-d057ae8b2897f6e4-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
+            "token": "01c6af5d098eecd5d8c5ed8e11ccc686",
+            "modname": "Contact @blrxflash",
+            "mod_status": "Safe",
+            "credit": "Give Feedback else Keys off",
+            "EXP": "2026-07-07 23:45:18",
+            "device": hwid,
+            "MOD_NAME": "Contact @blrxflash",
+            "MOD_STATUS": "Safe",
+            "FLOTING_TEST": "Give Feedback else Keys off",
+            "BHATIA_EXP": "2026-07-07 23:45:18",
+            "BHATIA_SLOT": hwid,
+            "rng": "1783254811"
+        }
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
