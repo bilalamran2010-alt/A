@@ -107,22 +107,22 @@ def verify():
     max_devs, devices_list, expiry, status = row
     
     response_data = {
-        "status": True,
         "data": {
-            "real": f"FreeFire-Astraleroo-{key}",
-            "token": "112bf4774f3e2570e306df2f2de42a3a",
-            "modname": "UnoShibai Hacks",
-            "mod_status": "Cracked",
-            "credit": "Give Feedback else Keys off",
-            "EXP": expiry,
-            "device": "999",
-            "MOD_NAME": "UnoShibai Hacks",
-            "MOD_STATUS": "Cracked",
-            "FLOTING_TEST": "Give Feedback else Keys off",
             "BHATIA_EXP": expiry,
             "BHATIA_SLOT": "1",
-            "rng": 46336742197
-        }
+            "EXP": expiry,
+            "FLOTING_TEST": "Give Feedback else Keys off",
+            "MOD_NAME": "UnoShibai Hacks",
+            "MOD_STATUS": "Cracked",
+            "credit": "Give Feedback else Keys off",
+            "device": "999",
+            "mod_status": "Cracked",
+            "modname": "UnoShibai Hacks",
+            "real": f"FreeFire-Astraleroo-{key}",
+            "rng": 46336742197,
+            "token": "112bf4774f3e2570e306df2f2de42a3a"
+        },
+        "status": True
     }
     
     conn.close()
