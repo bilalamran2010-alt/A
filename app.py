@@ -117,17 +117,13 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    # Attempt to get data
     data = request.get_json(silent=True) or request.form.to_dict()
-    
-    # Simple extraction
     key = data.get("key") or data.get("license") or data.get("code")
     
     if not key:
         return jsonify({"status": False, "reason": "Missing Key"})
 
     key = key.strip()
-    
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, expiry_date FROM keys WHERE key = ?", (key,)).fetchone()
     conn.close()
@@ -155,4 +151,8 @@ def verify():
             "rng": "1783254811"
         }
     })
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
     
