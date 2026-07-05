@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOL TEAM - Control Panel</title>
+    <!-- Premium Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #080710;
+            --bg-card: rgba(18, 16, 35, 0.7);
+            --accent-purple: #9d5cff;
+            --accent-cyan: #00e5ff;
+            --accent-blue: #2979ff;
+            --text-main: #f1f0f7;
+            --text-muted: #82809a;
+            --text-detail: #c1bfd6;
+            --border-color: rgba(255, 255, 255, 0.06);
+            --success: #00e676;
+            --danger: #ff1744;
+            --warning: #ff9100;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-primary);
+            background: radial-gradient(circle at 50% 0%, #1a153b 0%, var(--bg-primary) 80%);
+            color: var(--text-main);
+            padding: 30px 15px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow-x: hidden;
+        }
+
+        .main-wrapper {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        /* Navbar Layout */
+        .glass-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 20px 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .brand-hub {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-meta h1 {
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #ffffff, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-meta p {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .session-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .server-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 230, 118, 0.06);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .status-pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+        }
+
+        .btn-logout-node {
+            padding: 10px 18px;
+            background: rgba(255, 23, 68, 0.08);
+            border: 1px solid rgba(255, 23, 68, 0.2);
+            border-radius: 10px;
+            color: var(--danger);
+            font-weight: 700;
+            font-size: 12px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-logout-node:hover {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        /* Clean Dashboard Cards */
+        .dashboard-panel-card {
+            background: var(--bg-card);
+            border-radius: 22px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 28px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-heading-block {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 16px;
+        }
+
+        .panel-title-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-matrix-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .input-node-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-node-layout label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-detail);
+        }
+
+        .interactive-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(10, 8, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .interactive-input:focus {
+            border-color: var(--accent-cyan);
+            background: rgba(14, 12, 28, 0.9);
+        }
+
+        .chrono-capsule-structure {
+            background: rgba(10, 8, 20, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .chrono-capsule-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .chrono-inputs-flex-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .sub-chrono-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sub-chrono-field label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* Buttons styles */
+        .btn-submit-generator {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
+            border: none;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-submit-generator:hover {
+            box-shadow: 0 5px 20px rgba(157, 92, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-wipe-database {
+            padding: 8px 16px;
+            background: rgba(255, 23, 68, 0.08);
+            border: 1px solid rgba(255, 23, 68, 0.2);
+            border-radius: 10px;
+            color: var(--danger);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-wipe-database:hover {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        /* Modern Data Table layout */
+        .terminal-table-container {
+            width: 100%;
+            overflow-x: auto;
+            background: rgba(10, 8, 20, 0.3);
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .terminal-datatable {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+            min-width: 650px;
+        }
+
+        .terminal-datatable th {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 14px 18px;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .terminal-datatable td {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            color: #e2e0f0;
+            vertical-align: middle;
+        }
+
+        .crypto-key-render {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        .device-quota-pill {
+            background: rgba(41, 121, 255, 0.08);
+            border: 1px solid rgba(41, 121, 255, 0.25);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #70a5ff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .timer-countdown-string {
+            font-family: 'JetBrains Mono', monospace;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .actions-flex-wrapper {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-action-reset {
+            padding: 7px 12px;
+            background: rgba(255, 145, 0, 0.08);
+            border: 1px solid rgba(255, 145, 0, 0.25);
+            border-radius: 8px;
+            color: var(--warning);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-action-reset:hover {
+            background: var(--warning);
+            color: #000000;
+        }
+
+        .btn-action-revoke {
+            padding: 7px 12px;
+            background: rgba(255, 23, 68, 0.08);
+            border: 1px solid rgba(255, 23, 68, 0.2);
+            border-radius: 8px;
+            color: var(--danger);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-action-revoke:hover {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        .fallback-empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 35px;
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 768px) {
+            .glass-navbar { padding: 15px; flex-direction: column; gap: 12px; text-align: center; }
+            .session-control { flex-direction: column; width: 100%; gap: 10px; }
+            .server-status, .btn-logout-node { width: 100%; justify-content: center; }
+            .dashboard-panel-card { padding: 18px; border-radius: 16px; }
+            .panel-heading-block { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .btn-wipe-database { width: 100%; }
+            .chrono-inputs-flex-row { grid-template-columns: 1fr; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+
+        <!-- Navigation Header -->
+        <header class="glass-navbar">
+            <div class="brand-hub">
+                <div class="brand-meta">
+                    <h1>LOL TEAM</h1>
+                    <p>Licensing Authority Cluster</p>
+                </div>
+            </div>
+            <div class="session-control">
+                <div class="server-status">
+                    <span class="status-pulse"></span>
+                    Central DB Node Online
+                </div>
+                <a href="/logout" class="btn-logout-node">Terminate Session</a>
+            </div>
+        </header>
+
+        <!-- Generation Form Module -->
+        <form method="POST" action="">
+            <section class="dashboard-panel-card">
+                <div class="panel-heading-block">
+                    <div class="panel-title-text">⚡ Encryption Key Core Provisioner</div>
+                </div>
+
+                <div class="control-matrix-grid">
+                    <div class="input-node-layout">
+                        <label for="key_name">Enter key</label>
+                        <input type="text" id="key_name" name="key_name" class="interactive-input" placeholder="Enter key here..." autocomplete="off">
+                    </div>
+
+                    <div class="chrono-capsule-structure">
+                        <div class="chrono-capsule-title">⏱️ Lifecycle Duration Matrix</div>
+                        <div class="chrono-inputs-flex-row">
+                            <div class="sub-chrono-field">
+                                <input type="number" id="days" name="days" class="interactive-input" value="30" min="0" required>
+                                <label for="days">Days</label>
+                            </div>
+                            <div class="sub-chrono-field">
+                                <input type="number" id="hours" name="hours" class="interactive-input" value="0" min="0" max="23" required>
+                                <label for="hours">Hours</label>
+                            </div>
+                            <div class="sub-chrono-field">
+                                <input type="number" id="minutes" name="minutes" class="interactive-input" value="0" min="0" max="59" required>
+                                <label for="minutes">Mins</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-node-layout">
+                        <label for="max_devices">Allowed Hardware Instances</label>
+                        <input type="number" id="max_devices" name="max_devices" class="interactive-input" value="1" min="1" required>
+                    </div>
+                </div>
+
+                <button type="submit" name="action" value="generate" class="btn-submit-generator">Commit & Mint Access Token</button>
+            </section>
+        </form>
+
+        <!-- Data Logs Module -->
+        <section class="dashboard-panel-card">
+            <div class="panel-heading-block">
+                <div class="panel-title-text">📊 Active Credentials Directory</div>
+                <form method="POST" action="" style="display: inline; width: auto;">
+                    <button type="submit" name="action" value="clear_all" class="btn-wipe-database" onclick="return confirm('Purge complete dataset?');">Purge Complete Dataset</button>
+                </form>
+            </div>
+
+            <div class="terminal-table-container">
+                <table class="terminal-datatable">
+                    <thead>
+                        <tr>
+                            <th>Registry Access Token</th>
+                            <th>HWID Footprint Quota</th>
+                            <th>Expiration Scope</th>
+                            <th>Administrative Override</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if keys %}
+                            {% for key in keys %}
+                            <tr>
+                                <td class="crypto-key-render">{{ key.name }}</td>
+                                <td><span class="device-quota-pill">{{ key.used }} / {{ key.devices }} Node</span></td>
+                                <td><span class="timer-countdown-string">{{ key.duration_string }}</span></td>
+                                <td>
+                                    <form method="POST" action="" class="actions-flex-wrapper">
+                                        <input type="hidden" name="key_name" value="{{ key.name }}">
+                                        <button type="submit" name="action" value="reset_hwid" class="btn-action-reset" onclick="return confirm('Reset HWID connections for this key?');">Reset HWID</button>
+                                        <button type="submit" name="action" value="delete_key" class="btn-action-revoke" onclick="return confirm('Delete this key permanently?');">Revoke</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="fallback-empty-state">
+                                    <p>Null Reference: No cryptographic tokens found allocated in the secure table cluster.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+</body>
+  </html>
+                                  
