@@ -10,8 +10,7 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'SUPER_SECURE_KEY_2026'
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(BASE_DIR, 'final_fix.db')
+DB_NAME = os.path.join(os.getcwd(), 'final_fix.db')
 
 def get_db_connection():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -58,6 +57,7 @@ def admin_page():
             hours = int(request.form.get("hours", 0))
             minutes = int(request.form.get("minutes", 0))
             max_d = int(request.form.get("max_devices", 1))
+
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -66,7 +66,7 @@ def admin_page():
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
-                app.logger.error(f"Error: {e}")
+                app.logger.error(f"Error generating key: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -90,7 +90,23 @@ def admin_page():
     for r in rows:
         key_name, max_dev, devices_list, expiry_str = r
         used_dev = len([d for d in devices_list.split(',') if d])
-        keys_list.append({"name": key_name, "devices": max_dev, "used": used_dev, "expiry": expiry_str})
+
+        try:
+            expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
+            time_left = expiry_dt - datetime.now()
+            if time_left.total_seconds() > 0:
+                duration_string = f"{time_left.days}d {time_left.seconds // 3600}h {(time_left.seconds % 3600) // 60}m"
+            else:
+                duration_string = "Expired"
+        except:
+            duration_string = "Error"
+
+        keys_list.append({
+            "name": key_name,
+            "devices": max_dev,
+            "used": used_dev,
+            "duration_string": duration_string
+        })
 
     return render_template("admin.html", keys=keys_list)
 
@@ -99,13 +115,10 @@ def logout():
     session.pop("logged_in", None)
     return redirect(url_for("login"))
 
-@app.route("/v", methods=["POST"])
+@app.route("/v", methods=["POST", "GET"])
 def verify():
-    # Debugging: Log everything received
-    app.logger.info(f"REQUEST_DATA: {request.values.to_dict()}")
-    app.logger.info(f"REQUEST_JSON: {request.get_json(silent=True)}")
-
-    data = request.values.to_dict() or request.get_json(silent=True) or {}
+    app.logger.info(f"Request data: {request.get_data(as_text=True)}")
+    data = request.get_json(silent=True) or request.form.to_dict() or request.values.to_dict()
     key = data.get("key") or data.get("k") or data.get("code") or ""
     device_id = data.get("device_id") or data.get("id") or "unknown"
 
@@ -140,30 +153,18 @@ def verify():
             conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
-
         return jsonify({
-            "status": True,
-            "data": {
-                "real": f"FreeFire-@Astraleroo-{key}-{device_id}",
-                "token": "112bf4774f3e2570e306df2f2de42a3a",
-                "modname": "UnoShibai Hacks",
-                "mod_status": "Cracked",
-                "credit": "Give Feedback else Keys off",
-                "EXP": "9999-99-99 08:00:17",
-                "device": device_id,
-                "MOD_NAME": "UnoShibai Hacks",
-                "MOD_STATUS": "Cracked",
-                "FLOTING_TEST": "Give Feedback else Keys off",
-                "BHATIA_EXP": "9999-99-99 08:00:17",
-                "BHATIA_SLOT": "1",
-                "rng": 29663074180
-            }
+            "success": True, 
+            "status": "OK", 
+            "message": "success",
+            "token": "112bf4774f3e2570e306df2f2de42a3a",
+            "modname": "UnoShibai Hacks"
         })
 
     conn.close()
     return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
     
