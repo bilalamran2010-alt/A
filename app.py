@@ -58,7 +58,6 @@ def admin_page():
             hours = int(request.form.get("hours", 0))
             minutes = int(request.form.get("minutes", 0))
             max_d = int(request.form.get("max_devices", 1))
-
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -67,7 +66,7 @@ def admin_page():
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
-                app.logger.error(f"Error generating key: {e}")
+                app.logger.error(f"Error: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -91,13 +90,7 @@ def admin_page():
     for r in rows:
         key_name, max_dev, devices_list, expiry_str = r
         used_dev = len([d for d in devices_list.split(',') if d])
-        try:
-            expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
-            time_left = expiry_dt - datetime.now()
-            duration_string = f"{time_left.days}d {time_left.seconds // 3600}h" if time_left.total_seconds() > 0 else "Expired"
-        except:
-            duration_string = "Error"
-        keys_list.append({"name": key_name, "devices": max_dev, "used": used_dev, "duration_string": duration_string})
+        keys_list.append({"name": key_name, "devices": max_dev, "used": used_dev, "expiry": expiry_str})
 
     return render_template("admin.html", keys=keys_list)
 
@@ -108,10 +101,11 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    # Debug print to Railway logs
-    app.logger.info(f"Full Request Data: {request.values.to_dict()}")
-    
-    data = request.values
+    # Debugging: Log everything received
+    app.logger.info(f"REQUEST_DATA: {request.values.to_dict()}")
+    app.logger.info(f"REQUEST_JSON: {request.get_json(silent=True)}")
+
+    data = request.values.to_dict() or request.get_json(silent=True) or {}
     key = data.get("key") or data.get("k") or data.get("code") or ""
     device_id = data.get("device_id") or data.get("id") or "unknown"
 
