@@ -119,43 +119,44 @@ def logout():
 def verify():
     data = request.get_json(silent=True) or request.form.to_dict()
     key = data.get("key") or data.get("license") or data.get("code")
+    device_id = data.get("device_id", "1000")
     
     if not key:
         return jsonify({"status": False, "reason": "Missing Key"})
 
     key = key.strip()
     conn = get_db_connection()
-    row = conn.execute("SELECT max_devices, expiry_date FROM keys WHERE key = ?", (key,)).fetchone()
-    conn.close()
-
+    
+    row = conn.execute("SELECT max_devices, devices_list, expiry_date FROM keys WHERE key = ?", (key,)).fetchone()
+    
     if not row:
+        conn.close()
         return jsonify({"status": False, "reason": "Invalid License"})
 
-    max_devs, expiry = row
+    max_devs, devices_list, expiry = row
     
+    try:
+        expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
+        if datetime.now() > expiry_dt:
+            conn.close()
+            return jsonify({"status": False, "reason": "Expired License"})
+    except:
+        pass
+
+    devices = [d for d in devices_list.split(",") if d]
+    
+    if device_id not in devices:
+        if len(devices) >= max_devs:
+            conn.close()
+            return jsonify({"status": False, "reason": "Device limit reached"})
+        
+        devices.append(device_id)
+        conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
+        conn.commit()
+    
+    conn.close()
+
     return jsonify({
-        "status": True,
-        "data": {
-            "real": "FreeFire-Najmul101-d057ae8b2897f6e4-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
-            "token": "01c6af5d098eecd5d8c5ed8e11ccc686",
-            "modname": "Contact @Rk28g",
-            "mod_status": "Safe",
-            "credit": "Give Feedback",
-            "EXP": expiry,
-            "device": "1000",
-            "MOD_NAME": "Contact @Rk28g",
-            "MOD_STATUS": "Safe",
-            "FLOTING_TEST": "Safe",
-            "BHATIA_EXP": expiry,
-            "BHATIA_SLOT": str(max_devs),
-            "rng": "1783254811"
-        }
+        "status": True
     })
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
-
-if __name__ == "__main__":
-    app.run()
     
