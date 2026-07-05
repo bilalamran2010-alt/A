@@ -10,7 +10,6 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'SUPER_SECURE_KEY_2026'
 
-# تم تعديل مسار قاعدة البيانات ليكون محلياً داخل مجلد المشروع
 DB_NAME = "final_fix.db"
 
 def get_db_connection():
@@ -118,49 +117,23 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-
     data = request.get_json(silent=True) or request.form
     key = data.get("key", "").strip()
     
-    device_id = data.get("device_id", "1000").strip() 
-
+    # التحقق من وجود المفتاح فقط
     if not key:
-        return jsonify({
-            "status": False,
-            "reason": "Missing Key, Contact: @Rk28g"
-        })
+        return jsonify({"status": False, "reason": "Missing Key, Contact: @Rk28g"})
 
     conn = get_db_connection()
-    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
+    row = conn.execute("SELECT max_devices, expiry_date FROM keys WHERE key = ?", (key,)).fetchone()
+    conn.close()
 
     if not row:
-        conn.close()
         return jsonify({"status": False, "reason": "Invalid License, Contact: @Rk28g"})
 
-    max_devs, devices_list, expiry, status = row
+    max_devs, expiry = row
     
-    if status == "banned":
-        conn.close()
-        return jsonify({"status": False, "reason": "Banned, Contact: @Najmul101"})
-
-    try:
-        expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
-    except:
-        expiry_dt = datetime.strptime(expiry.split()[0], '%Y-%m-%d')
-
-    if datetime.now() > expiry_dt:
-        conn.close()
-        return jsonify({"status": False, "reason": "Expired, Contact: @Rk28g"})
-
-    devices = [d for d in devices_list.split(",") if d]
-    
-    if device_id not in devices and len(devices) < max_devs:
-        devices.append(device_id)
-        conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
-        conn.commit()
-    
-    conn.close()
-    
+    # رد ناجح دائماً
     return jsonify({
         "status": True,
         "data": {
@@ -170,7 +143,7 @@ def verify():
             "mod_status": "Safe",
             "credit": "Give Feedback else Keys off",
             "EXP": expiry,
-            "device": str(len(devices)),
+            "device": "1000",
             "MOD_NAME": "Contact @Rk28g",
             "MOD_STATUS": "Safe",
             "FLOTING_TEST": "Give Feedback else Keys off",
@@ -179,4 +152,8 @@ def verify():
             "rng": "1783254811"
         }
     })
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
     
