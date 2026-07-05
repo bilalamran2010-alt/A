@@ -117,6 +117,7 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
+    # Force Plain Text response to avoid any Parser Errors
     key = request.form.get("user_key")
     device_id = request.form.get("serial")
 
@@ -151,6 +152,7 @@ def verify():
             conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
+        # Direct string return, no JSON to parse
         return "Success: Autenticado com sucesso!"
 
     conn.close()
