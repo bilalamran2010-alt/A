@@ -66,7 +66,7 @@ def admin_page():
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
-                app.logger.error(f"Error generating key: {e}")
+                app.logger.error(f"Error: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -90,22 +90,11 @@ def admin_page():
     for r in rows:
         key_name, max_dev, devices_list, expiry_str = r
         used_dev = len([d for d in devices_list.split(',') if d])
-
-        try:
-            expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
-            time_left = expiry_dt - datetime.now()
-            if time_left.total_seconds() > 0:
-                duration_string = f"{time_left.days}d {time_left.seconds // 3600}h {(time_left.seconds % 3600) // 60}m"
-            else:
-                duration_string = "Expired"
-        except:
-            duration_string = "Error"
-
         keys_list.append({
             "name": key_name,
             "devices": max_dev,
             "used": used_dev,
-            "duration_string": duration_string
+            "expiry": expiry_str
         })
 
     return render_template("admin.html", keys=keys_list)
@@ -117,7 +106,19 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    # استجابة كاملة مطابقة لهيكل البيانات المطلوبة في 62070.jpg، 62071.jpg، و 62072.jpg
+    data = request.get_json()
+    user_key = data.get("key") if data else request.form.get("key")
+
+    if not user_key:
+        return jsonify({"status": False, "message": "Key required"})
+
+    conn = get_db_connection()
+    key_exists = conn.execute("SELECT 1 FROM keys WHERE key = ?", (user_key,)).fetchone()
+    conn.close()
+
+    if not key_exists:
+        return jsonify({"status": False, "message": "INVALID KEY"})
+
     return jsonify({
         "status": True, 
         "data": {
