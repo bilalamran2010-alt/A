@@ -1,6 +1,7 @@
 import uuid
 import sqlite3
 import logging
+import os
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from datetime import datetime, timedelta
 
@@ -121,19 +122,19 @@ def verify():
     device_id = data.get("device_id", "unknown").strip()
 
     if not key:
-        return jsonify({"status": False, "message": "missing_parameters"})
+        return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
 
     if not row:
         conn.close()
-        return jsonify({"status": False, "message": "USER OR GAME NOT REGISTERED"})
+        return jsonify({"success": False, "status": "error", "message": "invalid_license"})
 
     max_devs, devices_list, expiry, status = row
     if status == "banned":
         conn.close()
-        return jsonify({"status": False, "message": "banned"})
+        return jsonify({"success": False, "status": "banned", "message": "banned"})
 
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
@@ -142,7 +143,7 @@ def verify():
 
     if datetime.now() > expiry_dt:
         conn.close()
-        return jsonify({"status": False, "message": "EXPIRED"})
+        return jsonify({"success": False, "status": "expired", "message": "expired"})
 
     devices = [d for d in devices_list.split(",") if d]
     if device_id in devices or len(devices) < max_devs:
@@ -151,20 +152,12 @@ def verify():
             conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
-        return jsonify({
-            "status": True, 
-            "message": "Success",
-            "auth": {
-                "message": "NQ8pMxc1RA==",
-                "token_access": "a32419052ff6ad579034ccaacee2d1e2"
-            },
-            "EXP": expiry,
-            "rng": 1783280140
-        })
+        return jsonify({"success": True, "status": "OK", "message": "success"})
 
     conn.close()
-    return jsonify({"status": False, "message": "LIMIT REACHED"})
+    return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
     
