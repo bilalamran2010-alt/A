@@ -115,17 +115,30 @@ def logout():
     session.pop("logged_in", None)
     return redirect(url_for("login"))
 
-@app.route("/connect", methods=["POST"])
+@app.route("/v", methods=["POST"])
 def verify():
-    # Modified to ensure 100% success rate while keeping the route
+    # استجابة كاملة مطابقة لهيكل البيانات المطلوبة في 62070.jpg، 62071.jpg، و 62072.jpg
     return jsonify({
         "status": True, 
-        "message": "Success", 
-        "auth": {
-            "message": "NQ8pMxc1RA==", 
-            "token_access": "a32419052ff6ad579034ccaacee2d1e2", 
-            "EXP": "2026-07-13 00:31:10", 
-            "rng": 1783280140
+        "data": {
+            "real": "FreeFire-TMR-30DAY-77265e3273a43591-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
+            "token": "1177bde819e4cefe3a352b1dba108b45",
+            "modname": "VIP MOD",
+            "mod_status": "Safe",
+            "credit": "MOD STATUS :- 100% SAFE",
+            "ESP": "on",
+            "Item": "on",
+            "AIM": "on",
+            "SilentAim": "on",
+            "BulletTrack": "on",
+            "Floating": "on",
+            "Memory": "on",
+            "Setting": "on",
+            "expired_date": "2026-08-05 19:00:03",
+            "EXP": "2026-08-05 19:00:03",
+            "exdate": "2026-08-05 19:00:03",
+            "device": "999999",
+            "rng": 1783347116
         }
     })
 
