@@ -109,19 +109,23 @@ def verify():
     # Handle both JSON and Form Data to avoid 415 error
     if request.is_json:
         data = request.get_json()
-        user_key = data.get("key")
     else:
-        user_key = request.form.get("key")
+        data = request.form
+
+    user_key = data.get("key") or data.get("user_key") or data.get("license") or data.get("code")
 
     if not user_key:
         return jsonify({"status": False, "message": "KEY MISSING"})
 
     conn = get_db_connection()
-    key_check = conn.execute("SELECT 1 FROM keys WHERE key = ?", (user_key,)).fetchone()
+    # Fetch key details including expiry date
+    key_row = conn.execute("SELECT expiry_date FROM keys WHERE key = ?", (user_key,)).fetchone()
     conn.close()
 
-    if not key_check:
+    if not key_row:
         return jsonify({"status": False, "message": "INVALID KEY"})
+
+    expiry_val = key_row[0]
 
     return jsonify({
         "status": True, 
@@ -139,9 +143,9 @@ def verify():
             "Floating": "on",
             "Memory": "on",
             "Setting": "on",
-            "expired_date": "2026-08-05 19:00:03",
-            "EXP": "2026-08-05 19:00:03",
-            "exdate": "2026-08-05 19:00:03",
+            "expired_date": expiry_val,
+            "EXP": expiry_val,
+            "exdate": expiry_val,
             "device": "999999",
             "rng": 1783347116
         }
