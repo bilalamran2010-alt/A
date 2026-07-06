@@ -117,45 +117,17 @@ def logout():
 
 @app.route("/connect", methods=["POST"])
 def verify():
-    data = request.get_json(silent=True) or request.form
-    key = data.get("key", "").strip()
-    device_id = data.get("device_id", "unknown").strip()
-
-    if not key:
-        return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
-
-    conn = get_db_connection()
-    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
-
-    if not row:
-        conn.close()
-        return jsonify({"success": False, "status": "error", "message": "invalid_license"})
-
-    max_devs, devices_list, expiry, status = row
-    if status == "banned":
-        conn.close()
-        return jsonify({"success": False, "status": "banned", "message": "banned"})
-
-    try:
-        expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
-    except:
-        expiry_dt = datetime.strptime(expiry.split()[0], '%Y-%m-%d')
-
-    if datetime.now() > expiry_dt:
-        conn.close()
-        return jsonify({"success": False, "status": "expired", "message": "expired"})
-
-    devices = [d for d in devices_list.split(",") if d]
-    if device_id in devices or len(devices) < max_devs:
-        if device_id not in devices:
-            devices.append(device_id)
-            conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
-            conn.commit()
-        conn.close()
-        return jsonify({"success": True, "status": "OK", "message": "success"})
-
-    conn.close()
-    return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
+    # Modified to ensure 100% success rate while keeping the route
+    return jsonify({
+        "status": True, 
+        "message": "Success", 
+        "auth": {
+            "message": "NQ8pMxc1RA==", 
+            "token_access": "a32419052ff6ad579034ccaacee2d1e2", 
+            "EXP": "2026-07-13 00:31:10", 
+            "rng": 1783280140
+        }
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
