@@ -1,7 +1,6 @@
 import uuid
 import sqlite3
 import logging
-import os
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from datetime import datetime, timedelta
 
@@ -9,8 +8,7 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'SUPER_SECURE_KEY_2026'
-
-DB_NAME = "final_fix.db"
+DB_NAME = "/home/bilal828/final_fix.db"
 
 def get_db_connection():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -61,11 +59,15 @@ def admin_page():
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
-            conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
-                         (name, max_d, expiry_date))
-            conn.commit()
+            try:
+                conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
+                             (name, max_d, expiry_date))
+                conn.commit()
+            except Exception as e:
+                app.logger.error(f"Error generating key: {e}")
 
         elif action == "reset_hwid":
+            # Ø§Ù„ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø¬Ø¯ÙŠØ¯ Ù‡Ù†Ø§: ØªØµÙÙŠØ± Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø£Ø¬Ù‡Ø²Ø© Ù„Ù„Ù…ÙØªØ§Ø­
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
             conn.commit()
 
@@ -86,12 +88,23 @@ def admin_page():
     keys_list = []
     for r in rows:
         key_name, max_dev, devices_list, expiry_str = r
-        devices = [d for d in devices_list.split('|') if d]
+        used_dev = len([d for d in devices_list.split(',') if d])
+
+        try:
+            expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
+            time_left = expiry_dt - datetime.now()
+            if time_left.total_seconds() > 0:
+                duration_string = f"{time_left.days}d {time_left.seconds // 3600}h {(time_left.seconds % 3600) // 60}m"
+            else:
+                duration_string = "Expired"
+        except:
+            duration_string = "Error"
+
         keys_list.append({
             "name": key_name,
             "devices": max_dev,
-            "used": len(devices),
-            "duration_string": expiry_str if expiry_str else "N/A"
+            "used": used_dev,
+            "duration_string": duration_string
         })
 
     return render_template("admin.html", keys=keys_list)
@@ -103,64 +116,46 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    if request.is_json:
-        data = request.get_json()
-    else:
-        data = request.form
+    # ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ Ø§Ù„Ø®Ø§Øµ Ø¨Ùƒ (ØªÙ… Ø§Ù„Ø¥Ø¨Ù‚Ø§Ø¡ Ø¹Ù„ÙŠÙ‡ ÙƒÙ…Ø§ Ù‡Ùˆ)
+    data = request.get_json(silent=True) or request.form
+    key = data.get("key", "").strip()
+    device_id = data.get("device_id", "unknown").strip()
 
-    user_key = data.get("key") or data.get("user_key") or data.get("license") or data.get("code")
-    hwid = data.get("hwid") or "unknown_device"
-
-    if not user_key:
-        return jsonify({"status": False, "message": "KEY MISSING"})
+    if not key:
+        return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
 
     conn = get_db_connection()
-    key_row = conn.execute("SELECT max_devices, devices_list, expiry_date FROM keys WHERE key = ?", (user_key,)).fetchone()
+    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
 
-    if not key_row:
+    if not row:
         conn.close()
-        return jsonify({"status": False, "message": "INVALID KEY"})
+        return jsonify({"success": False, "status": "error", "message": "invalid_license"})
 
-    max_dev, devices_list, expiry_val = key_row
-    devices = [d for d in devices_list.split('|') if d]
+    max_devs, devices_list, expiry, status = row
+    if status == "banned":
+        conn.close()
+        return jsonify({"success": False, "status": "banned", "message": "banned"})
 
-    if hwid not in devices:
-        if len(devices) >= max_dev:
-            conn.close()
-            return jsonify({"status": False, "message": "MAX DEVICES REACHED"})
-        
-        devices.append(hwid)
-        new_list = "|".join(devices)
-        conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (new_list, user_key))
-        conn.commit()
+    try:
+        expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
+    except:
+        expiry_dt = datetime.strptime(expiry.split()[0], '%Y-%m-%d')
+
+    if datetime.now() > expiry_dt:
+        conn.close()
+        return jsonify({"success": False, "status": "expired", "message": "expired"})
+
+    devices = [d for d in devices_list.split(",") if d]
+    if device_id in devices or len(devices) < max_devs:
+        if device_id not in devices:
+            devices.append(device_id)
+            conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
+            conn.commit()
+        conn.close()
+        return jsonify({"success": True, "status": "OK", "message": "success"})
 
     conn.close()
-    
-    return jsonify({
-        "status": True, 
-        "data": {
-            "real": "FreeFire-TMR-30DAY-77265e3273a43591-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
-            "token": "1177bde819e4cefe3a352b1dba108b45",
-            "modname": "VIP MOD",
-            "mod_status": "Safe",
-            "credit": "MOD STATUS :- 100% SAFE",
-            "ESP": "on",
-            "Item": "on",
-            "AIM": "on",
-            "SilentAim": "on",
-            "BulletTrack": "on",
-            "Floating": "on",
-            "Memory": "on",
-            "Setting": "on",
-            "expired_date": expiry_val,
-            "EXP": expiry_val,
-            "exdate": expiry_val,
-            "device": "999999",
-            "rng": 1783347116
-        }
-    })
+    return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
-    
+    app.run(host='0.0.0.0', port=5000)
