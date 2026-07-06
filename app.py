@@ -61,12 +61,9 @@ def admin_page():
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
-            try:
-                conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
-                             (name, max_d, expiry_date))
-                conn.commit()
-            except Exception as e:
-                app.logger.error(f"Database Error: {e}")
+            conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
+                         (name, max_d, expiry_date))
+            conn.commit()
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -89,11 +86,11 @@ def admin_page():
     keys_list = []
     for r in rows:
         key_name, max_dev, devices_list, expiry_str = r
-        used_dev = len([d for d in devices_list.split(',') if d])
+        devices = [d for d in devices_list.split('|') if d]
         keys_list.append({
             "name": key_name,
             "devices": max_dev,
-            "used": used_dev,
+            "used": len(devices),
             "duration_string": expiry_str if expiry_str else "N/A"
         })
 
@@ -112,19 +109,33 @@ def verify():
         data = request.form
 
     user_key = data.get("key") or data.get("user_key") or data.get("license") or data.get("code")
+    hwid = data.get("hwid") or "unknown_device"
 
     if not user_key:
         return jsonify({"status": False, "message": "KEY MISSING"})
 
     conn = get_db_connection()
-    key_row = conn.execute("SELECT expiry_date FROM keys WHERE key = ?", (user_key,)).fetchone()
-    conn.close()
+    key_row = conn.execute("SELECT max_devices, devices_list, expiry_date FROM keys WHERE key = ?", (user_key,)).fetchone()
 
     if not key_row:
+        conn.close()
         return jsonify({"status": False, "message": "INVALID KEY"})
 
-    expiry_val = key_row[0]
+    max_dev, devices_list, expiry_val = key_row
+    devices = [d for d in devices_list.split('|') if d]
 
+    if hwid not in devices:
+        if len(devices) >= max_dev:
+            conn.close()
+            return jsonify({"status": False, "message": "MAX DEVICES REACHED"})
+        
+        devices.append(hwid)
+        new_list = "|".join(devices)
+        conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (new_list, user_key))
+        conn.commit()
+
+    conn.close()
+    
     return jsonify({
         "status": True, 
         "data": {
