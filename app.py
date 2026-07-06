@@ -68,7 +68,6 @@ def admin_page():
                 app.logger.error(f"Error generating key: {e}")
 
         elif action == "reset_hwid":
-            # Ø§Ù„ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø¬Ø¯ÙŠØ¯ Ù‡Ù†Ø§: ØªØµÙÙŠØ± Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø£Ø¬Ù‡Ø²Ø© Ù„Ù„Ù…ÙØªØ§Ø­
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
             conn.commit()
 
@@ -117,25 +116,24 @@ def logout():
 
 @app.route("/connect", methods=["POST"])
 def verify():
-    # ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ Ø§Ù„Ø®Ø§Øµ Ø¨Ùƒ (ØªÙ… Ø§Ù„Ø¥Ø¨Ù‚Ø§Ø¡ Ø¹Ù„ÙŠÙ‡ ÙƒÙ…Ø§ Ù‡Ùˆ)
     data = request.get_json(silent=True) or request.form
     key = data.get("key", "").strip()
     device_id = data.get("device_id", "unknown").strip()
 
     if not key:
-        return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
+        return jsonify({"status": False, "message": "missing_parameters"})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
 
     if not row:
         conn.close()
-        return jsonify({"success": False, "status": "error", "message": "invalid_license"})
+        return jsonify({"status": False, "message": "USER OR GAME NOT REGISTERED"})
 
     max_devs, devices_list, expiry, status = row
     if status == "banned":
         conn.close()
-        return jsonify({"success": False, "status": "banned", "message": "banned"})
+        return jsonify({"status": False, "message": "banned"})
 
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
@@ -144,7 +142,7 @@ def verify():
 
     if datetime.now() > expiry_dt:
         conn.close()
-        return jsonify({"success": False, "status": "expired", "message": "expired"})
+        return jsonify({"status": False, "message": "EXPIRED"})
 
     devices = [d for d in devices_list.split(",") if d]
     if device_id in devices or len(devices) < max_devs:
@@ -153,10 +151,20 @@ def verify():
             conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
-        return jsonify({"success": True, "status": "OK", "message": "success"})
+        return jsonify({
+            "status": True, 
+            "message": "Success",
+            "auth": {
+                "message": "NQ8pMxc1RA==",
+                "token_access": "a32419052ff6ad579034ccaacee2d1e2"
+            },
+            "EXP": expiry,
+            "rng": 1783280140
+        })
 
     conn.close()
-    return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
+    return jsonify({"status": False, "message": "LIMIT REACHED"})
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
+    
