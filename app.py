@@ -106,17 +106,21 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    data = request.get_json()
-    user_key = data.get("key") if data else request.form.get("key")
+    # Handle both JSON and Form Data to avoid 415 error
+    if request.is_json:
+        data = request.get_json()
+        user_key = data.get("key")
+    else:
+        user_key = request.form.get("key")
 
     if not user_key:
-        return jsonify({"status": False, "message": "Key required"})
+        return jsonify({"status": False, "message": "KEY MISSING"})
 
     conn = get_db_connection()
-    key_exists = conn.execute("SELECT 1 FROM keys WHERE key = ?", (user_key,)).fetchone()
+    key_check = conn.execute("SELECT 1 FROM keys WHERE key = ?", (user_key,)).fetchone()
     conn.close()
 
-    if not key_exists:
+    if not key_check:
         return jsonify({"status": False, "message": "INVALID KEY"})
 
     return jsonify({
