@@ -66,7 +66,7 @@ def admin_page():
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
-                app.logger.error(f"Error: {e}")
+                app.logger.error(f"Database Error: {e}")
 
         elif action == "reset_hwid":
             conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
@@ -94,7 +94,7 @@ def admin_page():
             "name": key_name,
             "devices": max_dev,
             "used": used_dev,
-            "expiry": expiry_str
+            "duration_string": expiry_str if expiry_str else "N/A"
         })
 
     return render_template("admin.html", keys=keys_list)
@@ -106,7 +106,6 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    # Handle both JSON and Form Data to avoid 415 error
     if request.is_json:
         data = request.get_json()
     else:
@@ -118,7 +117,6 @@ def verify():
         return jsonify({"status": False, "message": "KEY MISSING"})
 
     conn = get_db_connection()
-    # Fetch key details including expiry date
     key_row = conn.execute("SELECT expiry_date FROM keys WHERE key = ?", (user_key,)).fetchone()
     conn.close()
 
