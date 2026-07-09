@@ -18,6 +18,7 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
+    # Create keys table with default panel name set to Panel_07 and owner tracking
     conn.execute('''
         CREATE TABLE IF NOT EXISTS keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,9 +26,53 @@ def init_db():
             max_devices INTEGER DEFAULT 1,
             devices_list TEXT DEFAULT '',
             expiry_date TEXT,
-            status TEXT DEFAULT 'active'
+            status TEXT DEFAULT 'active',
+            panel_name TEXT DEFAULT 'Panel_07',
+            owner TEXT DEFAULT 'BILAL'
         )
     ''')
+    
+    # Ensure migrations for existing databases
+    try:
+        conn.execute("ALTER TABLE keys ADD COLUMN panel_name TEXT DEFAULT 'Panel_07'")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        conn.execute("ALTER TABLE keys ADD COLUMN owner TEXT DEFAULT 'BILAL'")
+    except sqlite3.OperationalError:
+        pass
+
+    # Create multi-login table for resellers and master admins with IP locking
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS admins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT DEFAULT 'reseller',
+            bound_ip TEXT DEFAULT NULL
+        )
+    ''')
+    
+    try:
+        conn.execute("ALTER TABLE admins ADD COLUMN bound_ip TEXT DEFAULT NULL")
+    except sqlite3.OperationalError:
+        pass
+
+    # Insert default authorized accounts securely
+    default_users = [
+        ("BILAL", "KING@", "master"),
+        ("NOVA", "MBAZAL", "reseller"),
+        ("UNIX", "L7AS", "reseller")
+    ]
+
+    for username, password, role in default_users:
+        user_exists = conn.execute("SELECT 1 FROM admins WHERE username = ?", (username,)).fetchone()
+        if not user_exists:
+            conn.execute("INSERT INTO admins (username, password, role) VALUES (?, ?, ?)", (username, password, role))
+        else:
+            conn.execute("UPDATE admins SET password = ?, role = ? WHERE username = ?", (password, role, username))
+
     conn.commit()
     conn.close()
 
@@ -36,9 +81,38 @@ init_db()
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        if request.form.get("username") == "BILAL" and request.form.get("password") == "KING":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        
+        # Get secure client IP address
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if client_ip and ',' in client_ip:
+            client_ip = client_ip.split(',')[0].strip()
+
+        conn = get_db_connection()
+        user = conn.execute("SELECT role, bound_ip FROM admins WHERE username = ? AND password = ?", (username, password)).fetchone()
+        
+        if user:
+            role, bound_ip = user
+            
+            # Enforce single IP locking logic
+            if bound_ip is None:
+                conn.execute("UPDATE admins SET bound_ip = ? WHERE username = ?", (client_ip, username))
+                conn.commit()
+                bound_ip = client_ip
+            elif bound_ip != client_ip:
+                conn.close()
+                return "<h1>Access Denied: Account bound to another IP matrix. Contact administrator.</h1>", 403
+            
+            conn.close()
             session["logged_in"] = True
+            session["username"] = username
+            session["role"] = role
             return redirect(url_for("admin_page"))
+            
+        conn.close()
+        return "<h1>Invalid Credentials</h1>", 401
+        
     return render_template("login.html")
 
 @app.route("/admin", methods=["GET", "POST"])
@@ -47,10 +121,19 @@ def admin_page():
         return redirect(url_for("login"))
 
     conn = get_db_connection()
+    current_user = session.get("username")
+    current_role = session.get("role")
 
     if request.method == "POST":
         action = request.form.get("action")
         key_name = request.form.get("key_name")
+
+        # Security check: Ensure non-masters can only modify their own keys
+        if key_name and current_role != "master":
+            key_owner = conn.execute("SELECT owner FROM keys WHERE [key] = ?", (key_name,)).fetchone()
+            if key_owner and key_owner[0] != current_user:
+                conn.close()
+                return "<h1>Unauthorized Action</h1>", 403
 
         if action == "generate":
             name = key_name or f"KEY-{uuid.uuid4().hex[:8].upper()}"
@@ -58,18 +141,41 @@ def admin_page():
             hours = int(request.form.get("hours", 0))
             minutes = int(request.form.get("minutes", 0))
             max_d = int(request.form.get("max_devices", 1))
+            panel = request.form.get("panel_name", "Panel_07")
 
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
             try:
-                conn.execute("INSERT INTO keys ([key], max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
-                             (name, max_d, expiry_date))
+                # Insert key bound to the current logged in user
+                conn.execute("INSERT INTO keys ([key], max_devices, expiry_date, status, panel_name, owner) VALUES (?, ?, ?, 'active', ?, ?)",
+                             (name, max_d, expiry_date, panel, current_user))
                 conn.commit()
             except Exception as e:
                 app.logger.error(f"Error generating key: {e}")
 
-        elif action == "reset_hwid":
+        elif action == "edit_key":
+            new_max = int(request.form.get("new_max_devices", 1))
+            new_panel = request.form.get("new_panel", "Panel_07")
+            add_days = int(request.form.get("add_days", 0))
+            
+            if add_days > 0:
+                row = conn.execute("SELECT expiry_date FROM keys WHERE [key] = ?", (key_name,)).fetchone()
+                if row:
+                    try:
+                        current_expiry = datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S')
+                        base_time = current_expiry if current_expiry > datetime.now() else datetime.now()
+                        new_expiry = (base_time + timedelta(days=add_days)).strftime('%Y-%m-%d %H:%M:%S')
+                        conn.execute("UPDATE keys SET max_devices = ?, panel_name = ?, expiry_date = ? WHERE [key] = ?", 
+                                     (new_max, new_panel, new_expiry, key_name))
+                    except:
+                        pass
+            else:
+                conn.execute("UPDATE keys SET max_devices = ?, panel_name = ? WHERE [key] = ?", 
+                             (new_max, new_panel, key_name))
+            conn.commit()
+
+        elif action == "reset_device":
             conn.execute("UPDATE keys SET devices_list = '' WHERE [key] = ?", (key_name,))
             conn.commit()
 
@@ -78,18 +184,37 @@ def admin_page():
             conn.commit()
 
         elif action == "clear_all":
-            conn.execute("DELETE FROM keys")
+            if current_role == "master":
+                conn.execute("DELETE FROM keys")
+            else:
+                conn.execute("DELETE FROM keys WHERE owner = ?", (current_user,))
             conn.commit()
+                
+        elif action == "add_reseller":
+            if current_role == "master":
+                r_user = request.form.get("reseller_username")
+                r_pass = request.form.get("reseller_password")
+                if r_user and r_pass:
+                    try:
+                        conn.execute("INSERT INTO admins (username, password, role) VALUES (?, ?, 'reseller')", (r_user, r_pass))
+                        conn.commit()
+                    except Exception as e:
+                        app.logger.error(f"Error adding reseller: {e}")
 
         conn.close()
         return redirect(url_for("admin_page"))
 
-    rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date FROM keys").fetchall()
+    # Isolation Logic: Masters see everything, resellers only see keys they own
+    if current_role == "master":
+        rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date, panel_name FROM keys").fetchall()
+    else:
+        rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date, panel_name FROM keys WHERE owner = ?", (current_user,)).fetchall()
+        
     conn.close()
 
     keys_list = []
     for r in rows:
-        key_name, max_dev, devices_list, expiry_str = r
+        key_name, max_dev, devices_list, expiry_str, panel_name = r
         used_dev = len([d for d in (devices_list or "").split(',') if d])
 
         try:
@@ -106,52 +231,48 @@ def admin_page():
             "name": key_name,
             "devices": max_dev,
             "used": used_dev,
-            "duration_string": duration_string
+            "duration_string": duration_string,
+            "panel_name": panel_name
         })
 
-    return render_template("admin.html", keys=keys_list)
+    return render_template("admin.html", keys=keys_list, current_user=current_user, current_role=current_role)
 
 @app.route("/logout")
 def logout():
-    session.pop("logged_in", None)
+    session.clear()
     return redirect(url_for("login"))
 
 @app.route("/v", methods=["POST", "GET"])
 def verify():
-    # Gather data from ALL possible entry points (JSON, Form, URL parameters, values)
     json_data = request.get_json(silent=True) or {}
     form_data = request.form or {}
     args_data = request.args or {}
     values_data = request.values or {}
 
-    # Check request type (init / login)
     req_type = (
         json_data.get("type") or form_data.get("type") or args_data.get("type") or values_data.get("type") or ""
     ).strip()
 
-    # Comprehensive lookups for the license key
     key = (
         json_data.get("key") or form_data.get("key") or args_data.get("key") or values_data.get("key") or
         json_data.get("username") or form_data.get("username") or args_data.get("username") or values_data.get("username") or
         json_data.get("license") or form_data.get("license") or args_data.get("license") or values_data.get("license") or ""
     ).strip()
 
-    # Comprehensive lookups for the device ID / HWID
     device_id = (
         json_data.get("device_id") or form_data.get("device_id") or args_data.get("device_id") or values_data.get("device_id") or
         json_data.get("hwid") or form_data.get("hwid") or args_data.get("hwid") or values_data.get("hwid") or "unknown_device"
     ).strip()
 
-    # Default initialization response structure required by KeyAuth client handshake
-    success_response = {
+    response_panel_07 = {
         "success": True, 
         "code": 68, 
         "message": "Initialized",
         "sessionid": uuid.uuid4().hex,
         "appinfo": {
-            "numUsers": "N/A - Use fetchStats() function in latest example",
-            "numOnlineUsers": "N/A - Use fetchStats() function in latest example",
-            "numKeys": "N/A - Use fetchStats() function in latest example",
+            "numUsers": "N/A",
+            "numOnlineUsers": "N/A",
+            "numKeys": "N/A",
             "version": "1.0",
             "customerPanelLink": "https://keyauth.cc/panel/modderstrick/07team/"
         },
@@ -160,22 +281,25 @@ def verify():
         "ownerid": "Ug7ojMSG2K"
     }
 
-    # If the request is purely for initialization handshake, return it immediately without failing
-    if req_type == "init":
-        return jsonify(success_response)
+    response_panel_02 = {}
+    response_panel_03 = {}
+    response_panel_04 = {}
+    response_panel_05 = {}
 
-    # If the app did not pass any identifier and it is not an init request, return the missing parameters payload
+    if req_type == "init":
+        return jsonify(response_panel_07)
+
     if not key:
         return jsonify({"code": 400, "message": "missing_parameters", "success": False})
 
     conn = get_db_connection()
-    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE [key] = ?", (key,)).fetchone()
+    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status, panel_name FROM keys WHERE [key] = ?", (key,)).fetchone()
 
     if not row:
         conn.close()
         return jsonify({"success": False, "message": "Invalid key or not registered!"})
 
-    max_devs, devices_list, expiry, status = row
+    max_devs, devices_list, expiry, status, panel_name = row
     if status == "banned":
         conn.close()
         return jsonify({"success": False, "message": "banned"})
@@ -198,7 +322,16 @@ def verify():
             conn.commit()
         conn.close()
         
-        return jsonify(success_response)
+        if panel_name == "Panel_02":
+            return jsonify(response_panel_02)
+        elif panel_name == "Panel_03":
+            return jsonify(response_panel_03)
+        elif panel_name == "Panel_04":
+            return jsonify(response_panel_04)
+        elif panel_name == "Panel_05":
+            return jsonify(response_panel_05)
+        else:
+            return jsonify(response_panel_07)
 
     conn.close()
     return jsonify({"success": False, "message": "limit_reached"})
