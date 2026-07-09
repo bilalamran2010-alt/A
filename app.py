@@ -123,32 +123,29 @@ def verify():
     device_id = data.get("device_id", "unknown").strip()
 
     if not key:
-        return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
+        return jsonify({"success": False, "code": 400, "message": "missing_parameters"})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE [key] = ?", (key,)).fetchone()
 
     if not row:
         conn.close()
-        return jsonify({"success": False, "status": "error", "message": "invalid_license"})
+        return jsonify({"success": False, "message": "Chave invalida ou nao registrada!"})
 
     max_devs, devices_list, expiry, status = row
     if status == "banned":
         conn.close()
-        return jsonify({"success": False, "status": "banned", "message": "banned"})
+        return jsonify({"success": False, "message": "banned"})
 
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
     except:
-        try:
-            expiry_dt = datetime.strptime(expiry.split()[0], '%Y-%m-%d')
-        except:
-            conn.close()
-            return jsonify({"success": False, "status": "error", "message": "date_error"})
+        conn.close()
+        return jsonify({"success": False, "message": "date_error"})
 
     if datetime.now() > expiry_dt:
         conn.close()
-        return jsonify({"success": False, "status": "expired", "message": "expired"})
+        return jsonify({"success": False, "message": "expired"})
 
     devices = [d for d in (devices_list or "").split(",") if d]
     if device_id in devices or len(devices) < max_devs:
@@ -157,10 +154,26 @@ def verify():
             conn.execute("UPDATE keys SET devices_list = ? WHERE [key] = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
-        return jsonify({"success": True, "status": "OK", "message": "success"})
+        
+        return jsonify({
+            "success": True, 
+            "code": 68, 
+            "message": "Initialized",
+            "sessionid": uuid.uuid4().hex,
+            "appinfo": {
+                "numUsers": "N/A - Use fetchStats() function in latest example",
+                "numOnlineUsers": "N/A - Use fetchStats() function in latest example",
+                "numKeys": "N/A - Use fetchStats() function in latest example",
+                "version": "1.0",
+                "customerPanelLink": "https://keyauth.cc/panel/modderstrick/07team/"
+            },
+            "newSession": True,
+            "nonce": uuid.uuid4().hex,
+            "ownerid": "Ug7ojMSG2K"
+        })
 
     conn.close()
-    return jsonify({"success": False, "status": "limit", "message": "limit_reached"})
+    return jsonify({"success": False, "message": "limit_reached"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
