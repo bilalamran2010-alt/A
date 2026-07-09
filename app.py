@@ -18,7 +18,6 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
-    # Create keys table with default panel name set to Panel_07 and owner tracking
     conn.execute('''
         CREATE TABLE IF NOT EXISTS keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +31,6 @@ def init_db():
         )
     ''')
     
-    # Ensure migrations for existing databases
     try:
         conn.execute("ALTER TABLE keys ADD COLUMN panel_name TEXT DEFAULT 'Panel_07'")
     except sqlite3.OperationalError:
@@ -43,7 +41,6 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
-    # Create multi-login table for resellers and master admins with IP locking
     conn.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +56,6 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
-    # Insert default authorized accounts securely
     default_users = [
         ("BILAL", "KING@", "master"),
         ("NOVA", "MBAZAL", "reseller"),
@@ -84,7 +80,6 @@ def login():
         username = request.form.get("username")
         password = request.form.get("password")
         
-        # Get secure client IP address
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         if client_ip and ',' in client_ip:
             client_ip = client_ip.split(',')[0].strip()
@@ -95,7 +90,6 @@ def login():
         if user:
             role, bound_ip = user
             
-            # Enforce single IP locking logic
             if bound_ip is None:
                 conn.execute("UPDATE admins SET bound_ip = ? WHERE username = ?", (client_ip, username))
                 conn.commit()
@@ -128,7 +122,6 @@ def admin_page():
         action = request.form.get("action")
         key_name = request.form.get("key_name")
 
-        # Security check: Ensure non-masters can only modify their own keys
         if key_name and current_role != "master":
             key_owner = conn.execute("SELECT owner FROM keys WHERE [key] = ?", (key_name,)).fetchone()
             if key_owner and key_owner[0] != current_user:
@@ -141,13 +134,17 @@ def admin_page():
             hours = int(request.form.get("hours", 0))
             minutes = int(request.form.get("minutes", 0))
             max_d = int(request.form.get("max_devices", 1))
-            panel = request.form.get("panel_name", "Panel_07")
+            
+            raw_panel = request.form.get("panel_name", "Panel_07")
+            panel = raw_panel.split()[0] if raw_panel else "Panel_07"
 
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
+            if total_duration.total_seconds() == 0:
+                total_duration = timedelta(days=1)
+                
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
             try:
-                # Insert key bound to the current logged in user
                 conn.execute("INSERT INTO keys ([key], max_devices, expiry_date, status, panel_name, owner) VALUES (?, ?, ?, 'active', ?, ?)",
                              (name, max_d, expiry_date, panel, current_user))
                 conn.commit()
@@ -156,7 +153,8 @@ def admin_page():
 
         elif action == "edit_key":
             new_max = int(request.form.get("new_max_devices", 1))
-            new_panel = request.form.get("new_panel", "Panel_07")
+            raw_panel = request.form.get("new_panel", "Panel_07")
+            new_panel = raw_panel.split()[0] if raw_panel else "Panel_07"
             add_days = int(request.form.get("add_days", 0))
             
             if add_days > 0:
@@ -189,7 +187,7 @@ def admin_page():
             else:
                 conn.execute("DELETE FROM keys WHERE owner = ?", (current_user,))
             conn.commit()
-                
+
         elif action == "add_reseller":
             if current_role == "master":
                 r_user = request.form.get("reseller_username")
@@ -204,7 +202,6 @@ def admin_page():
         conn.close()
         return redirect(url_for("admin_page"))
 
-    # Isolation Logic: Masters see everything, resellers only see keys they own
     if current_role == "master":
         rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date, panel_name FROM keys").fetchall()
     else:
@@ -323,13 +320,13 @@ def verify():
         conn.close()
         
         if panel_name == "Panel_02":
-            return jsonify(response_panel_02)
+            return jsonify({"success": False, "message": "Panel_02 Under Update"})
         elif panel_name == "Panel_03":
-            return jsonify(response_panel_03)
+            return jsonify({"success": False, "message": "Panel_03 Under Update"})
         elif panel_name == "Panel_04":
-            return jsonify(response_panel_04)
+            return jsonify({"success": False, "message": "Panel_04 Under Update"})
         elif panel_name == "Panel_05":
-            return jsonify(response_panel_05)
+            return jsonify({"success": False, "message": "Panel_05 Under Update"})
         else:
             return jsonify(response_panel_07)
 
