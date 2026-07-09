@@ -571,4 +571,151 @@
                             <tr>
                                 <td class="crypto-key-render">{{ key.name }}</td>
                                 <td>
-                                    <span 
+                                    <span class="device-quota-pill">{{ key.used }} / {{ key.devices }}</span>
+                                </td>
+                                <td>
+                                    <span class="timer-countdown-string">{{ key.duration_string }}</span>
+                                </td>
+                                <td>
+                                    <span class="panel-badge">{{ key.panel_name }}</span>
+                                </td>
+                                <td>
+                                    <span style="font-weight: 600; color: var(--text-detail);">{{ key.owner }}</span>
+                                </td>
+                                <td>
+                                    <div class="actions-flex-wrapper">
+                                        <!-- تصفير الـ HWID -->
+                                        <form method="POST" action="/admin" style="display:inline;">
+                                            <input type="hidden" name="action" value="reset_device">
+                                            <input type="hidden" name="key_name" value="{{ key.name }}">
+                                            <button type="submit" class="btn-action-reset">Reset</button>
+                                        </form>
+
+                                        <!-- تعديل المفتاح من خلال المودال -->
+                                        <button type="button" class="btn-action-edit" onclick="openEditModal('{{ key.name }}', '{{ key.devices }}', '{{ key.panel_name }}')">Edit</button>
+
+                                        <!-- حذف المفتاح -->
+                                        <form method="POST" action="/admin" style="display:inline;">
+                                            <input type="hidden" name="action" value="delete_key">
+                                            <input type="hidden" name="key_name" value="{{ key.name }}">
+                                            <button type="submit" class="btn-action-revoke" onclick="return confirm('Delete this key?');">Delete</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="fallback-empty-state">No active keys discovered in this node.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- جدول التحكم في الموزعين (يظهر للـ Master فقط) -->
+        {% if current_role == 'master' and resellers %}
+        <section class="dashboard-panel-card" style="border-color: rgba(0, 229, 255, 0.1);">
+            <div class="panel-heading-block">
+                <div class="panel-title-text" style="color: var(--accent-cyan);">👥 Sub-Resellers Node Management</div>
+            </div>
+            <div class="terminal-table-container">
+                <table class="terminal-datatable">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Password</th>
+                            <th>Bound HWID / IP</th>
+                            <th>Total Keys Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reseller in resellers %}
+                        <tr>
+                            <td style="font-weight: 700;">{{ reseller.username }}</td>
+                            <td class="crypto-key-render">{{ reseller.password }}</td>
+                            <td style="font-size: 12px; color: var(--text-detail);">{{ reseller.bound_ip }}</td>
+                            <td><span class="device-quota-pill" style="background: rgba(157, 92, 255, 0.1); color: #cbafff;">{{ reseller.key_count }} Keys</span></td>
+                            <td>
+                                <div class="actions-flex-wrapper">
+                                    <!-- تصفير بصمة الموزع -->
+                                    <form method="POST" action="/admin" style="display:inline;">
+                                        <input type="hidden" name="action" value="reset_reseller_ip">
+                                        <input type="hidden" name="reseller_username" value="{{ reseller.username }}">
+                                        <button type="submit" class="btn-action-reset" style="color: var(--warning); border-color: rgba(255, 145, 0, 0.2);">Reset HWID</button>
+                                    </form>
+
+                                    <!-- حذف الموزع نهائياً -->
+                                    <form method="POST" action="/admin" style="display:inline;">
+                                        <input type="hidden" name="action" value="delete_reseller">
+                                        <input type="hidden" name="reseller_username" value="{{ reseller.username }}">
+                                        <button type="submit" class="btn-action-revoke" onclick="return confirm('Delete this reseller and all their keys?');">Remove</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+    </div>
+
+    <!-- نافذة تعديل المفاتيح المنبثقة (Micro Modal) -->
+    <div id="editModal" class="micro-modal">
+        <div class="micro-modal-content">
+            <div class="modal-header-flex">
+                <h3 style="font-size: 16px; font-weight:700;">⚙️ Edit Token Config</h3>
+                <button type="button" class="btn-close-modal" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form method="POST" action="/admin">
+                <input type="hidden" name="action" value="edit_key">
+                <input type="hidden" id="modal_key_name" name="key_name">
+                
+                <div class="control-matrix-grid" style="gap: 15px;">
+                    <div class="input-node-layout">
+                        <label>Max Devices</label>
+                        <input type="number" id="modal_max_devices" name="new_max_devices" class="interactive-input" min="1" required>
+                    </div>
+                    <div class="input-node-layout">
+                        <label>Target Route</label>
+                        <select id="modal_panel_name" name="new_panel" class="interactive-select">
+                            <option value="Panel 07">Panel 07</option>
+                        </select>
+                    </div>
+                    <div class="input-node-layout">
+                        <label>Extend Lifetime (Add Days)</label>
+                        <input type="number" name="add_days" class="interactive-input" value="0" min="0">
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit-generator" style="margin-top: 15px;">Save Configurations</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- سكريبت تشغيل النوافذ المنبثقة -->
+    <script>
+        function openEditModal(keyName, maxDevices, panelName) {
+            document.getElementById('modal_key_name').value = keyName;
+            document.getElementById('modal_max_devices').value = maxDevices;
+            document.getElementById('modal_panel_name').value = panelName;
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            let modal = document.getElementById('editModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
