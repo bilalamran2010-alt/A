@@ -116,7 +116,6 @@ def admin_page():
         action = request.form.get("action", "").strip()
         key_name = request.form.get("key_name", "").strip()
 
-        # Automatic type matching fallbacks if explicitly missing
         if "max_devices" in request.form and ("days" in request.form or "hours" in request.form):
             action = "generate"
         elif "reseller_username" in request.form and "reseller_password" in request.form:
@@ -225,7 +224,6 @@ def admin_page():
         conn.close()
         return redirect(url_for("admin_page"))
 
-    # Select queries adjusted dynamically to capture hierarchy lists
     if current_role == "master":
         rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date, panel_name, owner FROM keys").fetchall()
     else:
@@ -269,7 +267,9 @@ def admin_page():
             })
 
     conn.close()
-    return render_template("admin.html", keys=keys_list, resellers=resellers_list, current_user=current_user, current_role=current_role)
+    
+    # التعديل هنا: تمرير المتغير باسم current_username ليطابق كود جينجا في الـ HTML تماماً
+    return render_template("admin.html", keys=keys_list, resellers=resellers_list, current_username=current_user, current_role=current_role)
 
 @app.route("/logout")
 def logout():
