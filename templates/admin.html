@@ -488,15 +488,15 @@
                             <input type="text" id="key_name" name="key_name" class="interactive-input" placeholder="Enter key here (or leave empty for random)..." autocomplete="off">
                         </div>
 
-                        <!-- Target Panel Dropdown Setup (5 Response Routes) -->
+                        <!-- Target Panel Dropdown Setup (Updated with 'Updated Soon') -->
                         <div class="input-node-layout">
                             <label for="panel_name">Target Server Response Route</label>
                             <select id="panel_name" name="panel_name" class="interactive-select">
-                                <option value="Panel_07">Panel_07 (KeyAuth Format)</option>
-                                <option value="Panel_02">Panel_02 (Custom Empty Slot)</option>
-                                <option value="Panel_03">Panel_03 (Custom Empty Slot)</option>
-                                <option value="Panel_04">Panel_04 (Custom Empty Slot)</option>
-                                <option value="Panel_05">Panel_05 (Custom Empty Slot)</option>
+                                <option value="Panel 07" selected>Panel 07 (KeyAuth Format)</option>
+                                <option value="Panel x1" disabled>Panel x1 (Updated Soon)</option>
+                                <option value="Panel x2" disabled>Panel x2 (Updated Soon)</option>
+                                <option value="Panel x3" disabled>Panel x3 (Updated Soon)</option>
+                                <option value="Panel x4" disabled>Panel x4 (Updated Soon)</option>
                             </select>
                         </div>
 
@@ -528,7 +528,7 @@
                 </section>
             </form>
 
-            <!-- Add Reseller / Multi-Login Card (Only visible to Master Admin) -->
+            <!-- Add Reseller / Multi-Login Card (Visible to Master Admin) -->
             {% if current_role == 'master' %}
             <form method="POST" action="/admin">
                 <input type="hidden" name="action" value="add_reseller">
@@ -567,4 +567,4 @@
                 {% endif %}
             </div>
 
-            <div class="termina
+ 
