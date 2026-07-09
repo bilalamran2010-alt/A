@@ -149,7 +149,7 @@ def admin_page():
             try:
                 conn.execute("INSERT INTO keys ([key], max_devices, expiry_date, status, panel_name, owner) VALUES (?, ?, ?, 'active', ?, ?)",
                              (name, max_d, expiry_date, panel, current_user))
-                conn.commit()
+                conn.execute("COMMIT")
                 app.logger.info(f"Successfully generated key: {name} for owner: {current_user}")
             except Exception as e:
                 app.logger.error(f"Error generating key: {e}")
@@ -174,17 +174,17 @@ def admin_page():
             else:
                 conn.execute("UPDATE keys SET max_devices = ?, panel_name = ? WHERE [key] = ?", 
                              (new_max, new_panel, key_name))
-            conn.commit()
+            conn.execute("COMMIT")
 
         # 3. Reset Hardware Signature 
         elif action == "reset_device":
             conn.execute("UPDATE keys SET devices_list = '' WHERE [key] = ?", (key_name,))
-            conn.commit()
+            conn.execute("COMMIT")
 
         # 4. Revoke Key Entry
         elif action == "delete_key":
             conn.execute("DELETE FROM keys WHERE [key] = ?", (key_name,))
-            conn.commit()
+            conn.execute("COMMIT")
 
         # 5. Global Table Wipe Options
         elif action == "clear_all":
@@ -192,7 +192,7 @@ def admin_page():
                 conn.execute("DELETE FROM keys")
             else:
                 conn.execute("DELETE FROM keys WHERE owner = ?", (current_user,))
-            conn.commit()
+            conn.execute("COMMIT")
 
         # 6. Instantiate Sub-Reseller Structures
         elif action == "add_reseller" and current_role == "master":
@@ -201,7 +201,7 @@ def admin_page():
             if r_user and r_pass:
                 try:
                     conn.execute("INSERT INTO admins (username, password, role, bound_hwid) VALUES (?, ?, 'reseller', NULL)", (r_user, r_pass))
-                    conn.commit()
+                    conn.execute("COMMIT")
                     app.logger.info(f"Successfully added reseller: {r_user}")
                 except Exception as e: 
                     app.logger.error(f"Error adding reseller: {e}")
@@ -212,14 +212,14 @@ def admin_page():
             if target_reseller and target_reseller != current_user:
                 conn.execute("DELETE FROM admins WHERE username = ? AND role = 'reseller'", (target_reseller,))
                 conn.execute("DELETE FROM keys WHERE owner = ?", (target_reseller,))
-                conn.commit()
+                conn.execute("COMMIT")
 
         # 8. Reset Bound IP Lock Fingerprints
         elif action == "reset_reseller_ip" and current_role == "master":
             target_reseller = request.form.get("reseller_username")
             if target_reseller:
                 conn.execute("UPDATE admins SET bound_hwid = NULL WHERE username = ?", (target_reseller,))
-                conn.commit()
+                conn.execute("COMMIT")
 
         conn.close()
         return redirect(url_for("admin_page"))
@@ -268,8 +268,8 @@ def admin_page():
 
     conn.close()
     
-    # التعديل هنا: تمرير المتغير باسم current_username ليطابق كود جينجا في الـ HTML تماماً
-    return render_template("admin.html", keys=keys_list, resellers=resellers_list, current_username=current_user, current_role=current_role)
+    # تمرير المتغيرين معاً لضمان عدم حدوث أي خطأ رندرة في قوالب جينجا المتعددة
+    return render_template("admin.html", keys=keys_list, resellers=resellers_list, current_user=current_user, current_username=current_user, current_role=current_role)
 
 @app.route("/logout")
 def logout():
@@ -345,7 +345,7 @@ def verify():
         if device_id not in devices and device_id != "unknown_device":
             devices.append(device_id)
             conn.execute("UPDATE keys SET devices_list = ? WHERE [key] = ?", (",".join(devices), key))
-            conn.commit()
+            conn.execute("COMMIT")
         conn.close()
         
         if "Panel 07" in panel_name:
