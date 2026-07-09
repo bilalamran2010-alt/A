@@ -1,8 +1,8 @@
-import os
 import uuid
 import sqlite3
 import logging
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
+import os
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
@@ -10,8 +10,7 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'SUPER_SECURE_KEY_2026'
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(BASE_DIR, "final_fix.db")
+DB_NAME = "final_fix.db"
 
 def get_db_connection():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -21,54 +20,13 @@ def init_db():
     conn.execute('''
         CREATE TABLE IF NOT EXISTS keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            [key] TEXT UNIQUE NOT NULL,
+            key TEXT UNIQUE NOT NULL,
             max_devices INTEGER DEFAULT 1,
             devices_list TEXT DEFAULT '',
             expiry_date TEXT,
-            status TEXT DEFAULT 'active',
-            panel_name TEXT DEFAULT 'Panel_07',
-            owner TEXT DEFAULT 'BILAL'
+            status TEXT DEFAULT 'active'
         )
     ''')
-    
-    try:
-        conn.execute("ALTER TABLE keys ADD COLUMN panel_name TEXT DEFAULT 'Panel_07'")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        conn.execute("ALTER TABLE keys ADD COLUMN owner TEXT DEFAULT 'BILAL'")
-    except sqlite3.OperationalError:
-        pass
-
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS admins (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT DEFAULT 'reseller',
-            bound_ip TEXT DEFAULT NULL
-        )
-    ''')
-    
-    try:
-        conn.execute("ALTER TABLE admins ADD COLUMN bound_ip TEXT DEFAULT NULL")
-    except sqlite3.OperationalError:
-        pass
-
-    default_users = [
-        ("BILAL", "KING@", "master"),
-        ("NOVA", "MBAZAL", "reseller"),
-        ("UNIX", "L7AS", "reseller")
-    ]
-
-    for username, password, role in default_users:
-        user_exists = conn.execute("SELECT 1 FROM admins WHERE username = ?", (username,)).fetchone()
-        if not user_exists:
-            conn.execute("INSERT INTO admins (username, password, role) VALUES (?, ?, ?)", (username, password, role))
-        else:
-            conn.execute("UPDATE admins SET password = ?, role = ? WHERE username = ?", (password, role, username))
-
     conn.commit()
     conn.close()
 
@@ -77,41 +35,9 @@ init_db()
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username").strip()
-        password = request.form.get("password").strip()
-        
-        # جلب الـ IP الحقيقي للمستخدم حتى وإن كان خلف البروكسي الخاص بـ Railway
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        if client_ip and ',' in client_ip:
-            client_ip = client_ip.split(',')[0].strip()
-
-        conn = get_db_connection()
-        user = conn.execute("SELECT role, bound_ip FROM admins WHERE username = ? AND password = ?", (username, password)).fetchone()
-        
-        if user:
-            role, bound_ip = user
-            
-            # حماية ذكية: إذا كان حساب الموزع جديداً تماماً ولم يربط IP بعد، نربطه بأول دخول
-            if bound_ip is None or bound_ip == "":
-                conn.execute("UPDATE admins SET bound_ip = ? WHERE username = ?", (client_ip, username))
-                conn.commit()
-                bound_ip = client_ip
-            # إذا كان الـ IP المسجل مختلفاً عن الحالي (يمكنك تعطيل هذا الشرط للموزعين لو تسبب بمشاكل في شبكات الهاتف المحمول)
-            elif bound_ip != client_ip and role != "master":
-                # السماح للموزعين بالدخول وتحديث الـ IP تلقائياً لتفادي قفل الشبكات المتغيرة (Data 4G)
-                conn.execute("UPDATE admins SET bound_ip = ? WHERE username = ?", (client_ip, username))
-                conn.commit()
-            
-            conn.close()
+        if request.form.get("username") == "BILAL" and request.form.get("password") == "KING":
             session["logged_in"] = True
-            session["username"] = username
-            session["role"] = role
             return redirect(url_for("admin_page"))
-            
-        conn.close()
-        flash("Invalid Username or Password Matched to our Node.")
-        return render_template("login.html")
-        
     return render_template("login.html")
 
 @app.route("/admin", methods=["GET", "POST"])
@@ -120,227 +46,120 @@ def admin_page():
         return redirect(url_for("login"))
 
     conn = get_db_connection()
-    current_user = session.get("username")
-    current_role = session.get("role")
 
     if request.method == "POST":
         action = request.form.get("action")
-        # مطابقة دقيقة لاسم الحقل القادم من واجهة توليد المفاتيح
         key_name = request.form.get("key_name")
 
-        if key_name and current_role != "master":
-            key_owner = conn.execute("SELECT owner FROM keys WHERE [key] = ?", (key_name,)).fetchone()
-            if key_owner and key_owner[0] != current_user:
-                conn.close()
-                return "<h1>Unauthorized Action</h1>", 403
-
         if action == "generate":
-            # إذا ترك الحقل فارغاً يتم توليد كود تلقائي
-            name = key_name.strip() if (key_name and key_name.strip() != "") else f"KEY-{uuid.uuid4().hex[:8].upper()}"
-            
-            # استقبال الحقول مقسمة كما هي في الـ HTML الجديد تماماً
+            name = key_name or f"KEY-{uuid.uuid4().hex[:8].upper()}"
             days = int(request.form.get("days", 0))
             hours = int(request.form.get("hours", 0))
             minutes = int(request.form.get("minutes", 0))
             max_d = int(request.form.get("max_devices", 1))
-            
-            # استقبال مسار البانل المستهدف وتأمين الاسم
-            raw_panel = request.form.get("panel_name", "Panel_07")
-            panel = raw_panel.split()[0] if raw_panel else "Panel_07"
 
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
-            if total_duration.total_seconds() == 0:
-                total_duration = timedelta(days=30) # الافتراضي شهر إذا لم يحدد
-                
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
-            try:
-                conn.execute("INSERT INTO keys ([key], max_devices, expiry_date, status, panel_name, owner) VALUES (?, ?, ?, 'active', ?, ?)",
-                             (name, max_d, expiry_date, panel, current_user))
-                conn.commit()
-            except Exception as e:
-                app.logger.error(f"Error generating key: {e}")
-
-        elif action == "edit_key":
-            new_max = int(request.form.get("new_max_devices", 1))
-            raw_panel = request.form.get("new_panel", "Panel_07")
-            new_panel = raw_panel.split()[0] if raw_panel else "Panel_07"
-            add_days = int(request.form.get("add_days", 0))
-            
-            if add_days > 0:
-                row = conn.execute("SELECT expiry_date FROM keys WHERE [key] = ?", (key_name,)).fetchone()
-                if row:
-                    try:
-                        current_expiry = datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S')
-                        base_time = current_expiry if current_expiry > datetime.now() else datetime.now()
-                        new_expiry = (base_time + timedelta(days=add_days)).strftime('%Y-%m-%d %H:%M:%S')
-                        conn.execute("UPDATE keys SET max_devices = ?, panel_name = ?, expiry_date = ? WHERE [key] = ?", 
-                                     (new_max, new_panel, new_expiry, key_name))
-                    except:
-                        pass
-            else:
-                conn.execute("UPDATE keys SET max_devices = ?, panel_name = ? WHERE [key] = ?", 
-                             (new_max, new_panel, key_name))
+            conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
+                         (name, max_d, expiry_date))
             conn.commit()
 
-        elif action == "reset_device":
-            conn.execute("UPDATE keys SET devices_list = '' WHERE [key] = ?", (key_name,))
+        elif action == "reset_hwid":
+            conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
             conn.commit()
 
         elif action == "delete_key":
-            conn.execute("DELETE FROM keys WHERE [key] = ?", (key_name,))
+            conn.execute("DELETE FROM keys WHERE key = ?", (key_name,))
             conn.commit()
 
         elif action == "clear_all":
-            if current_role == "master":
-                conn.execute("DELETE FROM keys")
-            else:
-                conn.execute("DELETE FROM keys WHERE owner = ?", (current_user,))
+            conn.execute("DELETE FROM keys")
             conn.commit()
-
-        elif action == "add_reseller":
-            if current_role == "master":
-                r_user = request.form.get("reseller_username").strip()
-                r_pass = request.form.get("reseller_password").strip()
-                if r_user and r_pass:
-                    try:
-                        # نقوم بحفظ الموزع بـ bound_ip فارغ تماماً ليتم ربطه تلقائياً عند أول عملية تسجيل دخول ناجحة له
-                        conn.execute("INSERT INTO admins (username, password, role, bound_ip) VALUES (?, ?, 'reseller', NULL)", (r_user, r_pass))
-                        conn.commit()
-                        app.logger.info(f"Reseller {r_user} created successfully.")
-                    except Exception as e:
-                        app.logger.error(f"Error adding reseller: {e}")
 
         conn.close()
         return redirect(url_for("admin_page"))
 
-    if current_role == "master":
-        rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date, panel_name FROM keys").fetchall()
-    else:
-        rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date, panel_name FROM keys WHERE owner = ?", (current_user,)).fetchall()
-        
+    rows = conn.execute("SELECT key, max_devices, devices_list, expiry_date FROM keys").fetchall()
     conn.close()
 
     keys_list = []
     for r in rows:
-        key_name, max_dev, devices_list, expiry_str, panel_name = r
-        used_dev = len([d for d in (devices_list or "").split(',') if d])
-
-        try:
-            expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
-            time_left = expiry_dt - datetime.now()
-            if time_left.total_seconds() > 0:
-                duration_string = f"{time_left.days}d {time_left.seconds // 3600}h {(time_left.seconds % 3600) // 60}m"
-            else:
-                duration_string = "Expired"
-        except:
-            duration_string = "Error"
-
+        key_name, max_dev, devices_list, expiry_str = r
+        devices = [d for d in devices_list.split('|') if d]
         keys_list.append({
             "name": key_name,
             "devices": max_dev,
-            "used": used_dev,
-            "duration_string": duration_string,
-            "panel_name": panel_name
+            "used": len(devices),
+            "duration_string": expiry_str if expiry_str else "N/A"
         })
 
-    return render_template("admin.html", keys=keys_list, current_user=current_user, current_role=current_role)
+    return render_template("admin.html", keys=keys_list)
 
 @app.route("/logout")
 def logout():
-    session.clear()
+    session.pop("logged_in", None)
     return redirect(url_for("login"))
 
-@app.route("/v", methods=["POST", "GET"])
+@app.route("/v", methods=["POST"])
 def verify():
-    json_data = request.get_json(silent=True) or {}
-    form_data = request.form or {}
-    args_data = request.args or {}
-    values_data = request.values or {}
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form
 
-    req_type = (
-        json_data.get("type") or form_data.get("type") or args_data.get("type") or values_data.get("type") or ""
-    ).strip()
+    user_key = data.get("key") or data.get("user_key") or data.get("license") or data.get("code")
+    hwid = data.get("hwid") or "unknown_device"
 
-    key = (
-        json_data.get("key") or form_data.get("key") or args_data.get("key") or values_data.get("key") or
-        json_data.get("username") or form_data.get("username") or args_data.get("username") or values_data.get("username") or
-        json_data.get("license") or form_data.get("license") or args_data.get("license") or values_data.get("license") or ""
-    ).strip()
-
-    device_id = (
-        json_data.get("device_id") or form_data.get("device_id") or args_data.get("device_id") or values_data.get("device_id") or
-        json_data.get("hwid") or form_data.get("hwid") or args_data.get("hwid") or values_data.get("hwid") or "unknown_device"
-    ).strip()
-
-    response_panel_07 = {
-        "success": True, 
-        "code": 68, 
-        "message": "Initialized",
-        "sessionid": uuid.uuid4().hex,
-        "appinfo": {
-            "numUsers": "N/A",
-            "numOnlineUsers": "N/A",
-            "numKeys": "N/A",
-            "version": "1.0",
-            "customerPanelLink": "https://keyauth.cc/panel/modderstrick/07team/"
-        },
-        "newSession": True,
-        "nonce": uuid.uuid4().hex,
-        "ownerid": "Ug7ojMSG2K"
-    }
-
-    if req_type == "init":
-        return jsonify(response_panel_07)
-
-    if not key:
-        return jsonify({"code": 400, "message": "missing_parameters", "success": False})
+    if not user_key:
+        return jsonify({"status": False, "message": "KEY MISSING"})
 
     conn = get_db_connection()
-    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status, panel_name FROM keys WHERE [key] = ?", (key,)).fetchone()
+    key_row = conn.execute("SELECT max_devices, devices_list, expiry_date FROM keys WHERE key = ?", (user_key,)).fetchone()
 
-    if not row:
+    if not key_row:
         conn.close()
-        return jsonify({"success": False, "message": "Invalid key or not registered!"})
+        return jsonify({"status": False, "message": "INVALID KEY"})
 
-    max_devs, devices_list, expiry, status, panel_name = row
-    if status == "banned":
-        conn.close()
-        return jsonify({"success": False, "message": "banned"})
+    max_dev, devices_list, expiry_val = key_row
+    devices = [d for d in devices_list.split('|') if d]
 
-    try:
-        expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
-    except:
-        conn.close()
-        return jsonify({"success": False, "message": "date_error"})
-
-    if datetime.now() > expiry_dt:
-        conn.close()
-        return jsonify({"success": False, "message": "expired"})
-
-    devices = [d for d in (devices_list or "").split(",") if d]
-    if device_id in devices or len(devices) < max_devs:
-        if device_id not in devices and device_id != "unknown_device":
-            devices.append(device_id)
-            conn.execute("UPDATE keys SET devices_list = ? WHERE [key] = ?", (",".join(devices), key))
-            conn.commit()
-        conn.close()
+    if hwid not in devices:
+        if len(devices) >= max_dev:
+            conn.close()
+            return jsonify({"status": False, "message": "MAX DEVICES REACHED"})
         
-        if panel_name == "Panel_02":
-            return jsonify({"success": False, "message": "Panel_02 Under Update"})
-        elif panel_name == "Panel_03":
-            return jsonify({"success": False, "message": "Panel_03 Under Update"})
-        elif panel_name == "Panel_04":
-            return jsonify({"success": False, "message": "Panel_04 Under Update"})
-        elif panel_name == "Panel_05":
-            return jsonify({"success": False, "message": "Panel_05 Under Update"})
-        else:
-            return jsonify(response_panel_07)
+        devices.append(hwid)
+        new_list = "|".join(devices)
+        conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (new_list, user_key))
+        conn.commit()
 
     conn.close()
-    return jsonify({"success": False, "message": "limit_reached"})
+    
+    return jsonify({
+        "status": True, 
+        "data": {
+            "real": "FreeFire-TMR-30DAY-77265e3273a43591-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E",
+            "token": "1177bde819e4cefe3a352b1dba108b45",
+            "modname": "VIP MOD",
+            "mod_status": "Safe",
+            "credit": "MOD STATUS :- 100% SAFE",
+            "ESP": "on",
+            "Item": "on",
+            "AIM": "on",
+            "SilentAim": "on",
+            "BulletTrack": "on",
+            "Floating": "on",
+            "Memory": "on",
+            "Setting": "on",
+            "expired_date": expiry_val,
+            "EXP": expiry_val,
+            "exdate": expiry_val,
+            "device": "999999",
+            "rng": 1783347116
+        }
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-    
