@@ -28,34 +28,30 @@ def init_db():
             status TEXT DEFAULT 'active',
             panel_name TEXT DEFAULT 'Panel_07',
             owner TEXT DEFAULT 'BILAL'
-        )
-    ''')
+        )''')
     
-    try:
-        conn.execute("ALTER TABLE keys ADD COLUMN panel_name TEXT DEFAULT 'Panel_07'")
-    except sqlite3.OperationalError:
-        pass
+    # تحديثات جدول المفاتيح
+    try: conn.execute("ALTER TABLE keys ADD COLUMN panel_name TEXT DEFAULT 'Panel_07'")
+    except sqlite3.OperationalError: pass
+    try: conn.execute("ALTER TABLE keys ADD COLUMN owner TEXT DEFAULT 'BILAL'")
+    except sqlite3.OperationalError: pass
 
-    try:
-        conn.execute("ALTER TABLE keys ADD COLUMN owner TEXT DEFAULT 'BILAL'")
-    except sqlite3.OperationalError:
-        pass
-
+    # إنشاء جدول المشرفين والموزعين وتحديث حقل الـ HWID
     conn.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             role TEXT DEFAULT 'reseller',
-            bound_ip TEXT DEFAULT NULL
-        )
-    ''')
+            bound_hwid TEXT DEFAULT NULL
+        )''')
     
     try:
-        conn.execute("ALTER TABLE admins ADD COLUMN bound_ip TEXT DEFAULT NULL")
+        conn.execute("ALTER TABLE admins ADD COLUMN bound_hwid TEXT DEFAULT NULL")
     except sqlite3.OperationalError:
         pass
 
+    # الحسابات الافتراضية الثابتة في النظام
     default_users = [
         ("BILAL", "KING@", "master"),
         ("NOVA", "MBAZAL", "reseller"),
@@ -77,25 +73,30 @@ init_db()
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username").strip()
-        password = request.form.get("password").strip()
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        browser_fingerprint = request.form.get("browser_fingerprint", "").strip()
         
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
-        if client_ip and ',' in client_ip:
-            client_ip = client_ip.split(',')[0].strip()
+        if not browser_fingerprint:
+            browser_fingerprint = "UNKNOWN-HWID"
 
         conn = get_db_connection()
-        user = conn.execute("SELECT role, bound_ip FROM admins WHERE username = ? AND password = ?", (username, password)).fetchone()
+        user = conn.execute("SELECT role, bound_hwid FROM admins WHERE username = ? AND password = ?", (username, password)).fetchone()
         
         if user:
-            role, bound_ip = user
+            role, bound_hwid = user
             
-            if bound_ip is None or bound_ip == "":
-                conn.execute("UPDATE admins SET bound_ip = ? WHERE username = ?", (client_ip, username))
+            # إذا كان الحساب جديداً أو لم يتم ربطه ببصمة متصفح بعد
+            if bound_hwid is None or bound_hwid == "" or bound_hwid == "NULL":
+                conn.execute("UPDATE admins SET bound_hwid = ? WHERE username = ?", (browser_fingerprint, username))
                 conn.commit()
-            elif bound_ip != client_ip and role != "master":
-                conn.execute("UPDATE admins SET bound_ip = ? WHERE username = ?", (client_ip, username))
-                conn.commit()
+                bound_hwid = browser_fingerprint
+            
+            # التحقق من تطابق بصمة الجهاز (يتم استثناء حساب الـ Master لسهولة التنقل)
+            if role != "master" and bound_hwid != browser_fingerprint:
+                conn.close()
+                flash("🔒 Device Verification Failed! This account is locked to another hardware node.")
+                return render_template("login.html")
             
             conn.close()
             session["logged_in"] = True
@@ -194,7 +195,7 @@ def admin_page():
             r_pass = request.form.get("reseller_password", "").strip()
             if r_user and r_pass:
                 try:
-                    conn.execute("INSERT INTO admins (username, password, role, bound_ip) VALUES (?, ?, 'reseller', NULL)", (r_user, r_pass))
+                    conn.execute("INSERT INTO admins (username, password, role, bound_hwid) VALUES (?, ?, 'reseller', NULL)", (r_user, r_pass))
                     conn.commit()
                 except Exception as e:
                     app.logger.error(f"Error adding reseller: {e}")
@@ -209,7 +210,7 @@ def admin_page():
         elif action == "reset_reseller_ip" and current_role == "master":
             target_reseller = request.form.get("reseller_username")
             if target_reseller:
-                conn.execute("UPDATE admins SET bound_ip = NULL WHERE username = ?", (target_reseller,))
+                conn.execute("UPDATE admins SET bound_hwid = NULL WHERE username = ?", (target_reseller,))
                 conn.commit()
 
         conn.close()
@@ -246,14 +247,14 @@ def admin_page():
 
     resellers_list = []
     if current_role == "master":
-        reseller_rows = conn.execute("SELECT username, password, bound_ip FROM admins WHERE role = 'reseller'").fetchall()
+        reseller_rows = conn.execute("SELECT username, password, bound_hwid FROM admins WHERE role = 'reseller'").fetchall()
         for r_row in reseller_rows:
-            r_user, r_pass, r_ip = r_row
+            r_user, r_pass, r_hwid = r_row
             key_count = conn.execute("SELECT COUNT(*) FROM keys WHERE owner = ?", (r_user,)).fetchone()[0]
             resellers_list.append({
                 "username": r_user,
                 "password": r_pass,
-                "bound_ip": r_ip or "Not Logged In Yet",
+                "bound_ip": r_hwid or "Not Logged In Yet",  # تظل ممررة كـ bound_ip لضمان التوافق مع متغيرات التمبلت admin.html دون كسر القوالب
                 "key_count": key_count
             })
 
