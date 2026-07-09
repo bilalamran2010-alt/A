@@ -118,11 +118,12 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    data = request.get_json(silent=True) or request.form
-    key = data.get("key", "").strip()
-    device_id = data.get("device_id", "").strip()
+    data = request.get_json(silent=True) or request.form or {}
+    
+    key = (data.get("key") or data.get("username") or data.get("license") or "").strip()
+    device_id = (data.get("device_id") or data.get("hwid") or "unknown_device").strip()
 
-    if not key or not device_id:
+    if not key:
         return jsonify({"code": 400, "message": "missing_parameters", "success": False})
 
     conn = get_db_connection()
@@ -149,7 +150,7 @@ def verify():
 
     devices = [d for d in (devices_list or "").split(",") if d]
     if device_id in devices or len(devices) < max_devs:
-        if device_id not in devices:
+        if device_id not in devices and device_id != "unknown_device":
             devices.append(device_id)
             conn.execute("UPDATE keys SET devices_list = ? WHERE [key] = ?", (",".join(devices), key))
             conn.commit()
