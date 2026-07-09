@@ -120,17 +120,17 @@ def logout():
 def verify():
     data = request.get_json(silent=True) or request.form
     key = data.get("key", "").strip()
-    device_id = data.get("device_id", "unknown").strip()
+    device_id = data.get("device_id", "").strip()
 
-    if not key:
-        return jsonify({"success": False, "code": 400, "message": "missing_parameters"})
+    if not key or not device_id:
+        return jsonify({"code": 400, "message": "missing_parameters", "success": False})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE [key] = ?", (key,)).fetchone()
 
     if not row:
         conn.close()
-        return jsonify({"success": False, "message": "Chave invalida ou nao registrada!"})
+        return jsonify({"success": False, "message": "Invalid key or not registered!"})
 
     max_devs, devices_list, expiry, status = row
     if status == "banned":
