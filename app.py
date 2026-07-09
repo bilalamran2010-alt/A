@@ -2,7 +2,7 @@ import os
 import uuid
 import sqlite3
 import logging
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
@@ -77,9 +77,10 @@ init_db()
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        username = request.form.get("username").strip()
+        password = request.form.get("password").strip()
         
+        # جلب الـ IP الحقيقي للمستخدم حتى وإن كان خلف البروكسي الخاص بـ Railway
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         if client_ip and ',' in client_ip:
             client_ip = client_ip.split(',')[0].strip()
@@ -90,13 +91,16 @@ def login():
         if user:
             role, bound_ip = user
             
-            if bound_ip is None:
+            # حماية ذكية: إذا كان حساب الموزع جديداً تماماً ولم يربط IP بعد، نربطه بأول دخول
+            if bound_ip is None or bound_ip == "":
                 conn.execute("UPDATE admins SET bound_ip = ? WHERE username = ?", (client_ip, username))
                 conn.commit()
                 bound_ip = client_ip
-            elif bound_ip != client_ip:
-                conn.close()
-                return "<h1>Access Denied: Account bound to another IP matrix. Contact administrator.</h1>", 403
+            # إذا كان الـ IP المسجل مختلفاً عن الحالي (يمكنك تعطيل هذا الشرط للموزعين لو تسبب بمشاكل في شبكات الهاتف المحمول)
+            elif bound_ip != client_ip and role != "master":
+                # السماح للموزعين بالدخول وتحديث الـ IP تلقائياً لتفادي قفل الشبكات المتغيرة (Data 4G)
+                conn.execute("UPDATE admins SET bound_ip = ? WHERE username = ?", (client_ip, username))
+                conn.commit()
             
             conn.close()
             session["logged_in"] = True
@@ -105,7 +109,8 @@ def login():
             return redirect(url_for("admin_page"))
             
         conn.close()
-        return "<h1>Invalid Credentials</h1>", 401
+        flash("Invalid Username or Password Matched to our Node.")
+        return render_template("login.html")
         
     return render_template("login.html")
 
@@ -120,6 +125,7 @@ def admin_page():
 
     if request.method == "POST":
         action = request.form.get("action")
+        # مطابقة دقيقة لاسم الحقل القادم من واجهة توليد المفاتيح
         key_name = request.form.get("key_name")
 
         if key_name and current_role != "master":
@@ -129,18 +135,22 @@ def admin_page():
                 return "<h1>Unauthorized Action</h1>", 403
 
         if action == "generate":
-            name = key_name or f"KEY-{uuid.uuid4().hex[:8].upper()}"
+            # إذا ترك الحقل فارغاً يتم توليد كود تلقائي
+            name = key_name.strip() if (key_name and key_name.strip() != "") else f"KEY-{uuid.uuid4().hex[:8].upper()}"
+            
+            # استقبال الحقول مقسمة كما هي في الـ HTML الجديد تماماً
             days = int(request.form.get("days", 0))
             hours = int(request.form.get("hours", 0))
             minutes = int(request.form.get("minutes", 0))
             max_d = int(request.form.get("max_devices", 1))
             
+            # استقبال مسار البانل المستهدف وتأمين الاسم
             raw_panel = request.form.get("panel_name", "Panel_07")
             panel = raw_panel.split()[0] if raw_panel else "Panel_07"
 
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             if total_duration.total_seconds() == 0:
-                total_duration = timedelta(days=1)
+                total_duration = timedelta(days=30) # الافتراضي شهر إذا لم يحدد
                 
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -190,12 +200,14 @@ def admin_page():
 
         elif action == "add_reseller":
             if current_role == "master":
-                r_user = request.form.get("reseller_username")
-                r_pass = request.form.get("reseller_password")
+                r_user = request.form.get("reseller_username").strip()
+                r_pass = request.form.get("reseller_password").strip()
                 if r_user and r_pass:
                     try:
-                        conn.execute("INSERT INTO admins (username, password, role) VALUES (?, ?, 'reseller')", (r_user, r_pass))
+                        # نقوم بحفظ الموزع بـ bound_ip فارغ تماماً ليتم ربطه تلقائياً عند أول عملية تسجيل دخول ناجحة له
+                        conn.execute("INSERT INTO admins (username, password, role, bound_ip) VALUES (?, ?, 'reseller', NULL)", (r_user, r_pass))
                         conn.commit()
+                        app.logger.info(f"Reseller {r_user} created successfully.")
                     except Exception as e:
                         app.logger.error(f"Error adding reseller: {e}")
 
@@ -277,11 +289,6 @@ def verify():
         "nonce": uuid.uuid4().hex,
         "ownerid": "Ug7ojMSG2K"
     }
-
-    response_panel_02 = {}
-    response_panel_03 = {}
-    response_panel_04 = {}
-    response_panel_05 = {}
 
     if req_type == "init":
         return jsonify(response_panel_07)
