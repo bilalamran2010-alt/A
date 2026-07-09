@@ -90,7 +90,6 @@
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
         }
 
-        /* Flash Error Messages Node */
         .alert-error-node {
             background: rgba(255, 23, 68, 0.08);
             border: 1px solid rgba(255, 23, 68, 0.2);
@@ -250,7 +249,6 @@
 
     <div class="login-card">
         
-        <!-- Jinja2 Flash Message Handler for Python Server -->
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 {% for message in messages %}
@@ -260,7 +258,6 @@
         {% endwith %}
 
         <form method="POST" action="/" id="loginForm" onsubmit="generateDeviceFingerprint()">
-            <!-- Hidden field for hardware session lock -->
             <input type="hidden" id="browser_fingerprint" name="browser_fingerprint">
             
             <div class="form-group">

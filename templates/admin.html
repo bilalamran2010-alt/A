@@ -49,7 +49,6 @@
             gap: 25px;
         }
 
-        /* Navbar Layout */
         .glass-navbar {
             display: flex;
             justify-content: space-between;
@@ -129,7 +128,6 @@
             color: #ffffff;
         }
 
-        /* Clean Dashboard Cards */
         .dashboard-panel-card {
             background: var(--bg-card);
             border-radius: 22px;
@@ -244,7 +242,6 @@
             text-align: center;
         }
 
-        /* Buttons styles */
         .btn-submit-generator {
             width: 100%;
             padding: 15px;
@@ -280,7 +277,6 @@
             color: #ffffff;
         }
 
-        /* Modern Data Table layout */
         .terminal-table-container {
             width: 100%;
             overflow-x: auto;
@@ -365,7 +361,6 @@
             font-weight: 700;
             font-size: 11px;
             transition: all 0.2s ease;
-            background-color: transparent;
         }
 
         .btn-action-reset:hover {
@@ -383,7 +378,6 @@
             font-weight: 700;
             font-size: 11px;
             transition: all 0.2s ease;
-            background-color: transparent;
         }
 
         .btn-action-edit:hover {
@@ -401,7 +395,6 @@
             font-weight: 700;
             font-size: 11px;
             transition: all 0.2s ease;
-            background-color: transparent;
         }
 
         .btn-action-revoke:hover {
@@ -415,7 +408,6 @@
             padding: 35px;
         }
 
-        /* Micro Modal Styling for Editing Keys */
         .micro-modal {
             display: none;
             position: fixed;
@@ -440,7 +432,6 @@
             background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer;
         }
 
-        /* Mobile Optimization */
         @media (max-width: 768px) {
             .glass-navbar { padding: 15px; flex-direction: column; gap: 12px; text-align: center; }
             .session-control { flex-direction: column; width: 100%; gap: 10px; }
@@ -458,7 +449,6 @@
 
     <div class="main-wrapper">
 
-        <!-- Navigation Header -->
         <header class="glass-navbar">
             <div class="brand-hub">
                 <div class="brand-meta">
@@ -477,7 +467,6 @@
 
         <div style="display: flex; flex-direction: column; gap: 25px;">
             
-            <!-- Generation Form Module -->
             <form method="POST" action="/admin">
                 <input type="hidden" name="action" value="generate">
                 <section class="dashboard-panel-card">
@@ -491,15 +480,10 @@
                             <input type="text" id="key_name" name="key_name" class="interactive-input" placeholder="Enter key here (or leave empty for random)..." autocomplete="off">
                         </div>
 
-                        <!-- Target Panel Dropdown Setup -->
                         <div class="input-node-layout">
                             <label for="panel_name">Target Server Response Route</label>
                             <select id="panel_name" name="panel_name" class="interactive-select">
                                 <option value="Panel 07" selected>Panel 07 (By bilal)</option>
-                                <option value="Panel x1" disabled>Panel x1 (Updated Soon)</option>
-                                <option value="Panel x2" disabled>Panel x2 (Updated Soon)</option>
-                                <option value="Panel x3" disabled>Panel x3 (Updated Soon)</option>
-                                <option value="Panel x4" disabled>Panel x4 (Updated Soon)</option>
                             </select>
                         </div>
 
@@ -531,7 +515,6 @@
                 </section>
             </form>
 
-            <!-- Add Reseller / Multi-Login Card (Visible to Master Admin) -->
             {% if current_role == 'master' %}
             <form method="POST" action="/admin">
                 <input type="hidden" name="action" value="add_reseller">
@@ -558,11 +541,35 @@
 
         </div>
 
-        <!-- Data Logs Module -->
         <section class="dashboard-panel-card">
             <div class="panel-heading-block">
                 <div class="panel-title-text">📊 Active Credentials Directory</div>
                 {% if current_role == 'master' %}
                 <form method="POST" action="/admin" style="display: inline; width: auto;">
                     <input type="hidden" name="action" value="clear_all">
-                    <button type="submit" class="btn-wipe-database" onclick="return confirm('Purge complete dataset?');">Purge Comple
+                    <button type="submit" class="btn-wipe-database" onclick="return confirm('Purge complete dataset?');">Purge Complete Dataset</button>
+                </form>
+                {% endif %}
+            </div>
+
+            <div class="terminal-table-container">
+                <table class="terminal-datatable">
+                    <thead>
+                        <tr>
+                            <th>Secret Key</th>
+                            <th>Devices (Used/Max)</th>
+                            <th>Time Left</th>
+                            <th>Target Route</th>
+                            <th>Owner</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key in keys %}
+                        <tr>
+                            <td class="crypto-key-render">{{ key.name }}</td>
+                            <td>
+                                <span class="device-quota-pill">{{ key.used }} / {{ key.devices }}</span>
+                            </td>
+                            <td>
+         
