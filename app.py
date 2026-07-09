@@ -116,11 +116,10 @@ def admin_page():
         action = request.form.get("action", "").strip()
         key_name = request.form.get("key_name", "").strip()
 
-        # [تعديل الأمان والذكاء التلقائي]: كشف نوع العملية إذا لم يرسل الـ HTML قيمة action صريحة
+        # Automatic type matching fallbacks if explicitly missing
         if "max_devices" in request.form and ("days" in request.form or "hours" in request.form):
             action = "generate"
         elif "reseller_username" in request.form and "reseller_password" in request.form:
-            # التحقق مما إذا كان الطلب يحتوي على زر حذف أو تصفير للوكيل
             if action not in ["delete_reseller", "reset_reseller_ip"]:
                 action = "add_reseller"
 
@@ -130,7 +129,7 @@ def admin_page():
                 conn.close()
                 return "<h1>Unauthorized Action</h1>", 403
 
-        # 1. توليد كود / مفتاح جديد
+        # 1. Generate Token
         if action == "generate":
             name = key_name if key_name != "" else f"KEY-{uuid.uuid4().hex[:8].upper()}"
             
@@ -139,7 +138,6 @@ def admin_page():
             minutes = int(request.form.get("minutes") or 0)
             max_d = int(request.form.get("max_devices") or 1)
             
-            # قراءة اسم البانل وضمان توافقه التام حتى لو كان يحتوي على (By bilal)
             raw_panel = request.form.get("panel_name", "Panel 07").strip()
             panel = "Panel 07" if "Panel 07" in raw_panel else raw_panel
 
@@ -157,7 +155,7 @@ def admin_page():
             except Exception as e:
                 app.logger.error(f"Error generating key: {e}")
 
-        # 2. تعديل بيانات المفتاح
+        # 2. Edit Existing Token Config
         elif action == "edit_key":
             new_max = int(request.form.get("new_max_devices") or 1)
             raw_new_panel = request.form.get("new_panel", "Panel 07").strip()
@@ -179,17 +177,17 @@ def admin_page():
                              (new_max, new_panel, key_name))
             conn.commit()
 
-        # 3. إعادة تعيين الـ HWID للمفتاح
+        # 3. Reset Hardware Signature 
         elif action == "reset_device":
             conn.execute("UPDATE keys SET devices_list = '' WHERE [key] = ?", (key_name,))
             conn.commit()
 
-        # 4. حذف المفتاح
+        # 4. Revoke Key Entry
         elif action == "delete_key":
             conn.execute("DELETE FROM keys WHERE [key] = ?", (key_name,))
             conn.commit()
 
-        # 5. مسح الكل
+        # 5. Global Table Wipe Options
         elif action == "clear_all":
             if current_role == "master":
                 conn.execute("DELETE FROM keys")
@@ -197,7 +195,7 @@ def admin_page():
                 conn.execute("DELETE FROM keys WHERE owner = ?", (current_user,))
             conn.commit()
 
-        # 6. إضافة موزع فرعي جديد
+        # 6. Instantiate Sub-Reseller Structures
         elif action == "add_reseller" and current_role == "master":
             r_user = request.form.get("reseller_username", "").strip()
             r_pass = request.form.get("reseller_password", "").strip()
@@ -209,7 +207,7 @@ def admin_page():
                 except Exception as e: 
                     app.logger.error(f"Error adding reseller: {e}")
 
-        # 7. حذف موزع فرعي
+        # 7. Unregister Sub-Resellers Completely
         elif action == "delete_reseller" and current_role == "master":
             target_reseller = request.form.get("reseller_username")
             if target_reseller and target_reseller != current_user:
@@ -217,7 +215,7 @@ def admin_page():
                 conn.execute("DELETE FROM keys WHERE owner = ?", (target_reseller,))
                 conn.commit()
 
-        # 8. إعادة قفل المتصفح للموزع
+        # 8. Reset Bound IP Lock Fingerprints
         elif action == "reset_reseller_ip" and current_role == "master":
             target_reseller = request.form.get("reseller_username")
             if target_reseller:
@@ -227,7 +225,7 @@ def admin_page():
         conn.close()
         return redirect(url_for("admin_page"))
 
-    # جلب البيانات وعرضها في القائمة بشكل صحيح
+    # Select queries adjusted dynamically to capture hierarchy lists
     if current_role == "master":
         rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date, panel_name, owner FROM keys").fetchall()
     else:
@@ -235,7 +233,7 @@ def admin_page():
         
     keys_list = []
     for r in rows:
-        key_name, max_dev, devices_list, expiry_str, panel_name, owner = r
+        k_name, max_dev, devices_list, expiry_str, p_name, owner_name = r
         used_dev = len([d for d in (devices_list or "").split(',') if d])
 
         try:
@@ -249,12 +247,12 @@ def admin_page():
             duration_string = "Error"
 
         keys_list.append({
-            "name": key_name,
+            "name": k_name,
             "devices": max_dev,
             "used": used_dev,
             "duration_string": duration_string,
-            "panel_name": panel_name,
-            "owner": owner
+            "panel_name": p_name,
+            "owner": owner_name
         })
 
     resellers_list = []
