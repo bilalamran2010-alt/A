@@ -453,7 +453,8 @@
             <div class="brand-hub">
                 <div class="brand-meta">
                     <h1>LOL TEAM</h1>
-                    <p>Licensing Authority Cluster (Active User: {{ current_user }})</p>
+                    <!-- التعديل هنا ليتوافق مع كود الباكيند تماماً -->
+                    <p>Licensing Authority Cluster (Active User: {{ current_username }})</p>
                 </div>
             </div>
             <div class="session-control">
@@ -570,6 +571,4 @@
                             <td class="crypto-key-render">{{ key.name }}</td>
                             <td>
                                 <span class="device-quota-pill">{{ key.used }} / {{ key.devices }}</span>
-                            </td>
-                            <td>
-         
+                                
