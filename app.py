@@ -26,17 +26,15 @@ def init_db():
             devices_list TEXT DEFAULT '',
             expiry_date TEXT,
             status TEXT DEFAULT 'active',
-            panel_name TEXT DEFAULT 'Panel_07',
+            panel_name TEXT DEFAULT 'Panel 07',
             owner TEXT DEFAULT 'BILAL'
         )''')
     
-    # تحديثات جدول المفاتيح
-    try: conn.execute("ALTER TABLE keys ADD COLUMN panel_name TEXT DEFAULT 'Panel_07'")
+    try: conn.execute("ALTER TABLE keys ADD COLUMN panel_name TEXT DEFAULT 'Panel 07'")
     except sqlite3.OperationalError: pass
     try: conn.execute("ALTER TABLE keys ADD COLUMN owner TEXT DEFAULT 'BILAL'")
     except sqlite3.OperationalError: pass
 
-    # إنشاء جدول المشرفين والموزعين وتحديث حقل الـ HWID
     conn.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,12 +44,9 @@ def init_db():
             bound_hwid TEXT DEFAULT NULL
         )''')
     
-    try:
-        conn.execute("ALTER TABLE admins ADD COLUMN bound_hwid TEXT DEFAULT NULL")
-    except sqlite3.OperationalError:
-        pass
+    try: conn.execute("ALTER TABLE admins ADD COLUMN bound_hwid TEXT DEFAULT NULL")
+    except sqlite3.OperationalError: pass
 
-    # الحسابات الافتراضية الثابتة في النظام
     default_users = [
         ("BILAL", "KING@", "master"),
         ("NOVA", "MBAZAL", "reseller"),
@@ -86,16 +81,14 @@ def login():
         if user:
             role, bound_hwid = user
             
-            # إذا كان الحساب جديداً أو لم يتم ربطه ببصمة متصفح بعد
             if bound_hwid is None or bound_hwid == "" or bound_hwid == "NULL":
                 conn.execute("UPDATE admins SET bound_hwid = ? WHERE username = ?", (browser_fingerprint, username))
                 conn.commit()
                 bound_hwid = browser_fingerprint
             
-            # التحقق من تطابق بصمة الجهاز (يتم استثناء حساب الـ Master لسهولة التنقل)
             if role != "master" and bound_hwid != browser_fingerprint:
                 conn.close()
-                flash("🔒 Device Verification Failed! This account is locked to another hardware node.")
+                flash("Device Verification Failed! Locked to another hardware node.")
                 return render_template("login.html")
             
             conn.close()
@@ -105,7 +98,7 @@ def login():
             return redirect(url_for("admin_page"))
             
         conn.close()
-        flash("Oops! Bad username or password. Check your setup.")
+        flash("Invalid credentials! Please check your username and password.")
         return render_template("login.html")
         
     return render_template("login.html")
@@ -121,24 +114,22 @@ def admin_page():
 
     if request.method == "POST":
         action = request.form.get("action")
-        key_name = request.form.get("key_name")
+        key_name = request.form.get("key_name", "").strip()
 
-        if key_name and current_role != "master":
+        if key_name and action in ["edit_key", "reset_device", "delete_key"] and current_role != "master":
             key_owner = conn.execute("SELECT owner FROM keys WHERE [key] = ?", (key_name,)).fetchone()
             if key_owner and key_owner[0] != current_user:
                 conn.close()
-                return "<h1>Hey! You can't touch this. Unauthorized.</h1>", 403
+                return "<h1>Unauthorized Action</h1>", 403
 
         if action == "generate":
-            name = key_name.strip() if (key_name and key_name.strip() != "") else f"KEY-{uuid.uuid4().hex[:8].upper()}"
+            name = key_name if key_name != "" else f"KEY-{uuid.uuid4().hex[:8].upper()}"
             
-            days = int(request.form.get("days", 0))
-            hours = int(request.form.get("hours", 0))
-            minutes = int(request.form.get("minutes", 0))
-            max_d = int(request.form.get("max_devices", 1))
-            
-            raw_panel = request.form.get("panel_name", "Panel_07")
-            panel = raw_panel.split()[0] if raw_panel else "Panel_07"
+            days = int(request.form.get("days") or 0)
+            hours = int(request.form.get("hours") or 0)
+            minutes = int(request.form.get("minutes") or 0)
+            max_d = int(request.form.get("max_devices") or 1)
+            panel = request.form.get("panel_name", "Panel 07").strip()
 
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             if total_duration.total_seconds() == 0:
@@ -154,10 +145,9 @@ def admin_page():
                 app.logger.error(f"Error generating key: {e}")
 
         elif action == "edit_key":
-            new_max = int(request.form.get("new_max_devices", 1))
-            raw_panel = request.form.get("new_panel", "Panel_07")
-            new_panel = raw_panel.split()[0] if raw_panel else "Panel_07"
-            add_days = int(request.form.get("add_days", 0))
+            new_max = int(request.form.get("new_max_devices") or 1)
+            new_panel = request.form.get("new_panel", "Panel 07").strip()
+            add_days = int(request.form.get("add_days") or 0)
             
             if add_days > 0:
                 row = conn.execute("SELECT expiry_date FROM keys WHERE [key] = ?", (key_name,)).fetchone()
@@ -168,8 +158,7 @@ def admin_page():
                         new_expiry = (base_time + timedelta(days=add_days)).strftime('%Y-%m-%d %H:%M:%S')
                         conn.execute("UPDATE keys SET max_devices = ?, panel_name = ?, expiry_date = ? WHERE [key] = ?", 
                                      (new_max, new_panel, new_expiry, key_name))
-                    except:
-                        pass
+                    except: pass
             else:
                 conn.execute("UPDATE keys SET max_devices = ?, panel_name = ? WHERE [key] = ?", 
                              (new_max, new_panel, key_name))
@@ -197,8 +186,7 @@ def admin_page():
                 try:
                     conn.execute("INSERT INTO admins (username, password, role, bound_hwid) VALUES (?, ?, 'reseller', NULL)", (r_user, r_pass))
                     conn.commit()
-                except Exception as e:
-                    app.logger.error(f"Error adding reseller: {e}")
+                except Exception as e: app.logger.error(f"Error adding reseller: {e}")
 
         elif action == "delete_reseller" and current_role == "master":
             target_reseller = request.form.get("reseller_username")
@@ -254,7 +242,7 @@ def admin_page():
             resellers_list.append({
                 "username": r_user,
                 "password": r_pass,
-                "bound_ip": r_hwid or "Not Logged In Yet",  # تظل ممررة كـ bound_ip لضمان التوافق مع متغيرات التمبلت admin.html دون كسر القوالب
+                "bound_ip": r_hwid or "Not Logged In Yet",
                 "key_count": key_count
             })
 
@@ -273,10 +261,7 @@ def verify():
     args_data = request.args or {}
     values_data = request.values or {}
 
-    req_type = (
-        json_data.get("type") or form_data.get("type") or args_data.get("type") or values_data.get("type") or ""
-    ).strip()
-
+    req_type = (json_data.get("type") or form_data.get("type") or args_data.get("type") or values_data.get("type") or "").strip()
     key = (
         json_data.get("key") or form_data.get("key") or args_data.get("key") or values_data.get("key") or
         json_data.get("username") or form_data.get("username") or args_data.get("username") or values_data.get("username") or
@@ -341,10 +326,14 @@ def verify():
             conn.commit()
         conn.close()
         
-        if panel_name == "Panel_07":
+        if panel_name == "Panel 07":
             return jsonify(response_panel_07)
         else:
-            return jsonify({"success": False, "message": "updated soon"})
+            return jsonify({
+                "success": True, 
+                "message": f"Authenticated successfully via {panel_name}",
+                "expiry": expiry
+            })
 
     conn.close()
     return jsonify({"success": False, "message": "limit_reached"})
