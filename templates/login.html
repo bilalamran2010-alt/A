@@ -257,7 +257,7 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" action="/" id="loginForm" onsubmit="generateDeviceFingerprint()">
+        <form method="POST" action="/" id="loginForm" onsubmit="return handleFormSubmit()">
             <input type="hidden" id="browser_fingerprint" name="browser_fingerprint">
             
             <div class="form-group">
@@ -313,18 +313,27 @@
         }
 
         function generateDeviceFingerprint() {
-            const agent = navigator.userAgent;
-            const screenW = window.screen.width;
-            const screenH = window.screen.height;
-            const bpc = window.screen.colorDepth;
-            const str = `${agent}-${screenW}x${screenH}-${bpc}`;
-            
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                hash = (hash << 5) - hash + str.charCodeAt(i);
-                hash |= 0;
+            try {
+                const agent = navigator.userAgent || "UnknownAgent";
+                const screenW = window.screen.width || 0;
+                const screenH = window.screen.height || 0;
+                const bpc = window.screen.colorDepth || 0;
+                const str = `${agent}-${screenW}x${screenH}-${bpc}`;
+                
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    hash = (hash << 5) - hash + str.charCodeAt(i);
+                    hash |= 0;
+                }
+                document.getElementById('browser_fingerprint').value = 'WEB-' + Math.abs(hash);
+            } catch (e) {
+                document.getElementById('browser_fingerprint').value = 'WEB-FALLBACK-' + Math.floor(Math.random() * 100000);
             }
-            document.getElementById('browser_fingerprint').value = 'WEB-' + Math.abs(hash);
+        }
+
+        function handleFormSubmit() {
+            generateDeviceFingerprint();
+            return true;
         }
 
         window.addEventListener('DOMContentLoaded', generateDeviceFingerprint);

@@ -408,6 +408,7 @@
             padding: 35px;
         }
 
+        /* Micro Modal Styling */
         .micro-modal {
             display: none;
             position: fixed;
@@ -441,7 +442,7 @@
             .btn-wipe-database { width: 100%; }
             .chrono-inputs-flex-row { grid-template-columns: 1fr; gap: 10px; }
             .actions-flex-wrapper { flex-direction: column; width: 100%; }
-            .actions-flex-wrapper button { width: 100%; }
+            .actions-flex-wrapper button, .actions-flex-wrapper form { width: 100%; }
         }
     </style>
 </head>
@@ -453,7 +454,6 @@
             <div class="brand-hub">
                 <div class="brand-meta">
                     <h1>LOL TEAM</h1>
-                    <!-- التعديل هنا ليتوافق مع كود الباكيند تماماً -->
                     <p>Licensing Authority Cluster (Active User: {{ current_username }})</p>
                 </div>
             </div>
@@ -566,9 +566,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for key in keys %}
-                        <tr>
-                            <td class="crypto-key-render">{{ key.name }}</td>
-                            <td>
-                                <span class="device-quota-pill">{{ key.used }} / {{ key.devices }}</span>
-                                
+                        {% if keys and keys|length > 0 %}
+                            {% for key in keys %}
+                            <tr>
+                                <td class="crypto-key-render">{{ key.name }}</td>
+                                <td>
+                                    <span 
