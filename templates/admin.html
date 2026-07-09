@@ -365,6 +365,7 @@
             font-weight: 700;
             font-size: 11px;
             transition: all 0.2s ease;
+            background-color: transparent;
         }
 
         .btn-action-reset:hover {
@@ -382,6 +383,7 @@
             font-weight: 700;
             font-size: 11px;
             transition: all 0.2s ease;
+            background-color: transparent;
         }
 
         .btn-action-edit:hover {
@@ -399,6 +401,7 @@
             font-weight: 700;
             font-size: 11px;
             transition: all 0.2s ease;
+            background-color: transparent;
         }
 
         .btn-action-revoke:hover {
@@ -562,10 +565,4 @@
                 {% if current_role == 'master' %}
                 <form method="POST" action="/admin" style="display: inline; width: auto;">
                     <input type="hidden" name="action" value="clear_all">
-                    <button type="submit" class="btn-wipe-database" onclick="return confirm('Purge complete dataset?');">Purge Complete Dataset</button>
-                </form>
-                {% endif %}
-            </div>
-
-            <!-- Table Block -->
-    
+                    <button type="submit" class="btn-wipe-database" onclick="return confirm('Purge complete dataset?');">Purge Comple
