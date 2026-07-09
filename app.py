@@ -116,13 +116,28 @@ def logout():
     session.pop("logged_in", None)
     return redirect(url_for("login"))
 
-@app.route("/v", methods=["POST"])
+@app.route("/v", methods=["POST", "GET"])
 def verify():
-    data = request.get_json(silent=True) or request.form or {}
-    
-    key = (data.get("key") or data.get("username") or data.get("license") or "").strip()
-    device_id = (data.get("device_id") or data.get("hwid") or "unknown_device").strip()
+    # Gather data from ALL possible entry points (JSON, Form, URL parameters, values)
+    json_data = request.get_json(silent=True) or {}
+    form_data = request.form or {}
+    args_data = request.args or {}
+    values_data = request.values or {}
 
+    # Comprehensive lookups for the license key
+    key = (
+        json_data.get("key") or form_data.get("key") or args_data.get("key") or values_data.get("key") or
+        json_data.get("username") or form_data.get("username") or args_data.get("username") or values_data.get("username") or
+        json_data.get("license") or form_data.get("license") or args_data.get("license") or values_data.get("license") or ""
+    ).strip()
+
+    # Comprehensive lookups for the device ID / HWID
+    device_id = (
+        json_data.get("device_id") or form_data.get("device_id") or args_data.get("device_id") or values_data.get("device_id") or
+        json_data.get("hwid") or form_data.get("hwid") or args_data.get("hwid") or values_data.get("hwid") or "unknown_device"
+    ).strip()
+
+    # If the app did not pass any identifier, return the missing parameters payload
     if not key:
         return jsonify({"code": 400, "message": "missing_parameters", "success": False})
 
