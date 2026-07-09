@@ -18,7 +18,7 @@ def init_db():
     conn.execute('''
         CREATE TABLE IF NOT EXISTS keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            key TEXT UNIQUE NOT NULL,
+            [key] TEXT UNIQUE NOT NULL,
             max_devices INTEGER DEFAULT 1,
             devices_list TEXT DEFAULT '',
             expiry_date TEXT,
@@ -60,19 +60,18 @@ def admin_page():
             expiry_date = (datetime.now() + total_duration).strftime('%Y-%m-%d %H:%M:%S')
 
             try:
-                conn.execute("INSERT INTO keys (key, max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
+                conn.execute("INSERT INTO keys ([key], max_devices, expiry_date, status) VALUES (?, ?, ?, 'active')",
                              (name, max_d, expiry_date))
                 conn.commit()
             except Exception as e:
                 app.logger.error(f"Error generating key: {e}")
 
         elif action == "reset_hwid":
-            # Ø§Ù„ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø¬Ø¯ÙŠØ¯ Ù‡Ù†Ø§: ØªØµÙÙŠØ± Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø£Ø¬Ù‡Ø²Ø© Ù„Ù„Ù…ÙØªØ§Ø­
-            conn.execute("UPDATE keys SET devices_list = '' WHERE key = ?", (key_name,))
+            conn.execute("UPDATE keys SET devices_list = '' WHERE [key] = ?", (key_name,))
             conn.commit()
 
         elif action == "delete_key":
-            conn.execute("DELETE FROM keys WHERE key = ?", (key_name,))
+            conn.execute("DELETE FROM keys WHERE [key] = ?", (key_name,))
             conn.commit()
 
         elif action == "clear_all":
@@ -82,13 +81,13 @@ def admin_page():
         conn.close()
         return redirect(url_for("admin_page"))
 
-    rows = conn.execute("SELECT key, max_devices, devices_list, expiry_date FROM keys").fetchall()
+    rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date FROM keys").fetchall()
     conn.close()
 
     keys_list = []
     for r in rows:
         key_name, max_dev, devices_list, expiry_str = r
-        used_dev = len([d for d in devices_list.split(',') if d])
+        used_dev = len([d for d in (devices_list or "").split(',') if d])
 
         try:
             expiry_dt = datetime.strptime(expiry_str, '%Y-%m-%d %H:%M:%S')
@@ -116,7 +115,6 @@ def logout():
 
 @app.route("/v", methods=["POST"])
 def verify():
-    # ÙƒÙˆØ¯ Ø§Ù„ØªØ­Ù‚Ù‚ Ø§Ù„Ø®Ø§Øµ Ø¨Ùƒ (ØªÙ… Ø§Ù„Ø¥Ø¨Ù‚Ø§Ø¡ Ø¹Ù„ÙŠÙ‡ ÙƒÙ…Ø§ Ù‡Ùˆ)
     data = request.get_json(silent=True) or request.form
     key = data.get("key", "").strip()
     device_id = data.get("device_id", "unknown").strip()
@@ -125,7 +123,7 @@ def verify():
         return jsonify({"success": False, "status": "error", "message": "missing_parameters"})
 
     conn = get_db_connection()
-    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE key = ?", (key,)).fetchone()
+    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status FROM keys WHERE [key] = ?", (key,)).fetchone()
 
     if not row:
         conn.close()
@@ -139,17 +137,21 @@ def verify():
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
     except:
-        expiry_dt = datetime.strptime(expiry.split()[0], '%Y-%m-%d')
+        try:
+            expiry_dt = datetime.strptime(expiry.split()[0], '%Y-%m-%d')
+        except:
+            conn.close()
+            return jsonify({"success": False, "status": "error", "message": "date_error"})
 
     if datetime.now() > expiry_dt:
         conn.close()
         return jsonify({"success": False, "status": "expired", "message": "expired"})
 
-    devices = [d for d in devices_list.split(",") if d]
+    devices = [d for d in (devices_list or "").split(",") if d]
     if device_id in devices or len(devices) < max_devs:
         if device_id not in devices:
             devices.append(device_id)
-            conn.execute("UPDATE keys SET devices_list = ? WHERE key = ?", (",".join(devices), key))
+            conn.execute("UPDATE keys SET devices_list = ? WHERE [key] = ?", (",".join(devices), key))
             conn.commit()
         conn.close()
         return jsonify({"success": True, "status": "OK", "message": "success"})
@@ -159,3 +161,4 @@ def verify():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
+    
