@@ -4,19 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOL TEAM - Premium License System</title>
+    <!-- Premium Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-primary: #080710;
+            --bg-card: rgba(18, 16, 35, 0.7);
+            --accent-cyan: #00e5ff;
+            --accent-purple: #9d5cff;
+            --accent-blue: #2979ff;
+            --text-main: #f1f0f7;
+            --text-muted: #82809a;
+            --border-color: rgba(255, 255, 255, 0.06);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         body {
             min-height: 100vh;
-            background: #080710;
-            background: radial-gradient(circle at center, #110e26 0%, #06050b 100%);
-            color: #ffffff;
+            background: var(--bg-primary);
+            background: radial-gradient(circle at center, #1a153b 0%, var(--bg-primary) 100%);
+            color: var(--text-main);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -32,14 +45,13 @@
         .app-icon {
             width: 75px;
             height: 75px;
-            background: linear-gradient(135deg, #a044ff 0%, #00d2ff 100%);
+            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-cyan) 100%);
             border-radius: 20px;
             display: flex;
             justify-content: center;
             align-items: center;
             margin: 0 auto 20px auto;
-            box-shadow: 0 0 25px rgba(160, 68, 255, 0.4);
-            position: relative;
+            box-shadow: 0 0 25px rgba(157, 92, 255, 0.4);
         }
 
         .app-icon svg {
@@ -51,7 +63,9 @@
         .brand-container h1 {
             font-size: 28px;
             font-weight: 800;
-            color: #3ca2f4;
+            background: linear-gradient(90deg, #ffffff, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             letter-spacing: 1px;
             margin-bottom: 8px;
             text-transform: uppercase;
@@ -59,19 +73,20 @@
 
         .brand-container p {
             font-size: 13px;
-            color: #797693;
+            color: var(--text-muted);
             font-weight: 500;
         }
 
         .login-card {
             width: 100%;
             max-width: 390px;
-            background: rgba(18, 16, 32, 0.6);
+            background: var(--bg-card);
             border-radius: 22px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             padding: 30px 25px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
         }
 
         .form-group {
@@ -82,7 +97,7 @@
             display: block;
             font-size: 13px;
             font-weight: 600;
-            color: #9290a4;
+            color: var(--text-muted);
             margin-bottom: 10px;
         }
 
@@ -103,17 +118,18 @@
         .input-field {
             width: 100%;
             padding: 14px 14px 14px 45px;
-            background: rgba(10, 8, 20, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(10, 8, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 12px;
             color: #ffffff;
             font-size: 14px;
             outline: none;
-            transition: border-color 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .input-field:focus {
-            border-color: rgba(0, 210, 255, 0.5);
+            border-color: var(--accent-cyan);
+            background: rgba(14, 12, 28, 0.9);
         }
 
         .eye-icon {
@@ -132,7 +148,7 @@
         .btn-signin {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(90deg, #7c41ff 0%, #15b3ff 100%);
+            background: linear-gradient(90deg, var(--accent-purple) 0%, var(--accent-blue) 100%);
             border: none;
             border-radius: 12px;
             color: #ffffff;
@@ -143,14 +159,14 @@
             justify-content: center;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 5px 20px rgba(124, 65, 255, 0.3);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 5px 20px rgba(157, 92, 255, 0.3);
+            transition: all 0.3s ease;
             margin-top: 10px;
         }
 
         .btn-signin:hover {
+            box-shadow: 0 7px 25px rgba(41, 121, 255, 0.4);
             transform: translateY(-1px);
-            box-shadow: 0 7px 25px rgba(21, 179, 255, 0.4);
         }
 
         .divider-text {
@@ -161,13 +177,12 @@
             letter-spacing: 2px;
             text-transform: uppercase;
             margin: 25px 0 20px 0;
-            position: relative;
         }
 
         .support-area {
             text-align: center;
             font-size: 13px;
-            color: #9290a4;
+            color: var(--text-muted);
             font-weight: 500;
             display: flex;
             justify-content: center;
@@ -178,14 +193,14 @@
         .status-dot {
             width: 8px;
             height: 8px;
-            background-color: #00ffaa;
+            background-color: #00e676;
             border-radius: 50%;
             display: inline-block;
-            box-shadow: 0 0 8px #00ffaa;
+            box-shadow: 0 0 8px #00e676;
         }
 
         .support-link {
-            color: #00d2ff;
+            color: var(--accent-cyan);
             text-decoration: none;
             font-weight: 600;
         }
@@ -207,19 +222,22 @@
 
     <div class="brand-container">
         <div class="app-icon">
-            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 8zM4 19h16v2H4z"/></svg>
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
         </div>
         <h1>LOL TEAM</h1>
-        <p>Premium License System — Secure Access</p>
+        <p>Premium License System — Hardware Bound Node</p>
     </div>
 
     <div class="login-card">
-        <form method="POST" action="/">
+        <form method="POST" action="/" id="loginForm">
+            <!-- Hidden field for hardware session lock -->
+            <input type="hidden" id="browser_fingerprint" name="browser_fingerprint">
+            
             <div class="form-group">
                 <label for="username">Username</label>
                 <div class="input-wrapper">
                     <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5-4-8-4z"/></svg>
-                    <input type="text" id="username" name="username" class="input-field" placeholder="Enter username" required autocomplete="off">
+                    <input type="text" id="username" name="username" class="input-field" placeholder="Enter security handle" required autocomplete="off">
                 </div>
             </div>
 
@@ -236,21 +254,21 @@
 
             <button type="submit" class="btn-signin">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="white" style="position:static;"><path d="M10 17v-4H3v-2h7V7l5 5-5 5zm10 2H11v-2h9V5h-9V3h9c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2z"/></svg>
-                Sign In
+                Authenticate Session
             </button>
 
-            <div class="divider-text">Secure Access</div>
+            <div class="divider-text">Secure Area</div>
 
             <div class="support-area">
                 <span class="status-dot"></span>
-                <span>Buy account?</span>
-                <a href="https://t.me/Rk28g" class="support-link" target="_blank">Contact Support</a>
+                <span>Need Access?</span>
+                <a href="https://t.me/Rk28g" class="support-link" target="_blank">Contact Administration</a>
             </div>
         </form>
     </div>
 
     <div class="footer-credits">
-        © 2026 LOL TEAM — Premium License System
+        © 2026 LOL TEAM — Hardware Enforced Matrix
     </div>
 
     <script>
@@ -262,6 +280,24 @@
                 x.type = "password";
             }
         }
+
+        // Generates a browser fingerprint dynamically to enforce single-device locking logic on the backend
+        function generateDeviceFingerprint() {
+            const agent = navigator.userAgent;
+            const screenW = window.screen.width;
+            const screenH = window.screen.height;
+            const bpc = window.screen.colorDepth;
+            const str = `${agent}-${screenW}x${screenH}-${bpc}`;
+            
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = (hash << 5) - hash + str.charCodeAt(i);
+                hash |= 0;
+            }
+            document.getElementById('browser_fingerprint').value = 'WEB-' + Math.abs(hash);
+        }
+
+        window.onload = generateDeviceFingerprint;
     </script>
 </body>
 </html>

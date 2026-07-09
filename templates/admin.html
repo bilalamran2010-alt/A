@@ -194,6 +194,23 @@
             background: rgba(14, 12, 28, 0.9);
         }
 
+        .interactive-select {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(10, 8, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .interactive-select option {
+            background: #121023;
+            color: #fff;
+        }
+
         .chrono-capsule-structure {
             background: rgba(10, 8, 20, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.04);
@@ -313,6 +330,16 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
+        .panel-badge {
+            background: rgba(157, 92, 255, 0.15);
+            border: 1px solid rgba(157, 92, 255, 0.4);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #cbafff;
+            font-weight: bold;
+        }
+
         .timer-countdown-string {
             font-family: 'JetBrains Mono', monospace;
             color: #ffffff;
@@ -324,6 +351,7 @@
         .actions-flex-wrapper {
             display: flex;
             gap: 8px;
+            align-items: center;
         }
 
         .btn-action-reset {
@@ -340,6 +368,23 @@
 
         .btn-action-reset:hover {
             background: var(--warning);
+            color: #000000;
+        }
+
+        .btn-action-edit {
+            padding: 7px 12px;
+            background: rgba(0, 229, 255, 0.08);
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            border-radius: 8px;
+            color: var(--accent-cyan);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-action-edit:hover {
+            background: var(--accent-cyan);
             color: #000000;
         }
 
@@ -366,6 +411,31 @@
             padding: 35px;
         }
 
+        /* Micro Modal Styling for Editing Keys */
+        .micro-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .micro-modal-content {
+            background: #131129;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 24px; width: 90%; max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .modal-header-flex {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;
+        }
+        .btn-close-modal {
+            background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer;
+        }
+
         /* Mobile Optimization */
         @media (max-width: 768px) {
             .glass-navbar { padding: 15px; flex-direction: column; gap: 12px; text-align: center; }
@@ -375,6 +445,8 @@
             .panel-heading-block { flex-direction: column; gap: 12px; align-items: flex-start; }
             .btn-wipe-database { width: 100%; }
             .chrono-inputs-flex-row { grid-template-columns: 1fr; gap: 10px; }
+            .actions-flex-wrapper { flex-direction: column; width: 100%; }
+            .actions-flex-wrapper button { width: 100%; }
         }
     </style>
 </head>
@@ -387,7 +459,7 @@
             <div class="brand-hub">
                 <div class="brand-meta">
                     <h1>LOL TEAM</h1>
-                    <p>Licensing Authority Cluster</p>
+                    <p>Licensing Authority Cluster (Active User: {{ current_user }})</p>
                 </div>
             </div>
             <div class="session-control">
@@ -399,96 +471,100 @@
             </div>
         </header>
 
-        <!-- Generation Form Module -->
-        <form method="POST" action="">
-            <section class="dashboard-panel-card">
-                <div class="panel-heading-block">
-                    <div class="panel-title-text">⚡ Encryption Key Core Provisioner</div>
-                </div>
-
-                <div class="control-matrix-grid">
-                    <div class="input-node-layout">
-                        <label for="key_name">Enter key</label>
-                        <input type="text" id="key_name" name="key_name" class="interactive-input" placeholder="Enter key here..." autocomplete="off">
+        <div style="display: flex; flex-direction: column; gap: 25px;">
+            
+            <!-- Generation Form Module -->
+            <form method="POST" action="">
+                <section class="dashboard-panel-card">
+                    <div class="panel-heading-block">
+                        <div class="panel-title-text">⚡ Encryption Key Core Provisioner</div>
                     </div>
 
-                    <div class="chrono-capsule-structure">
-                        <div class="chrono-capsule-title">⏱️ Lifecycle Duration Matrix</div>
-                        <div class="chrono-inputs-flex-row">
-                            <div class="sub-chrono-field">
-                                <input type="number" id="days" name="days" class="interactive-input" value="30" min="0" required>
-                                <label for="days">Days</label>
+                    <div class="control-matrix-grid">
+                        <div class="input-node-layout">
+                            <label for="key_name">Enter key</label>
+                            <input type="text" id="key_name" name="key_name" class="interactive-input" placeholder="Enter key here (or leave empty for random)..." autocomplete="off">
+                        </div>
+
+                        <!-- Target Panel Dropdown Setup (5 Response Routes) -->
+                        <div class="input-node-layout">
+                            <label for="panel_name">Target Server Response Route</label>
+                            <select id="panel_name" name="panel_name" class="interactive-select">
+                                <option value="Panel_07">Panel_07 (KeyAuth Format)</option>
+                                <option value="Panel_02">Panel_02 (Custom Empty Slot)</option>
+                                <option value="Panel_03">Panel_03 (Custom Empty Slot)</option>
+                                <option value="Panel_04">Panel_04 (Custom Empty Slot)</option>
+                                <option value="Panel_05">Panel_05 (Custom Empty Slot)</option>
+                            </select>
+                        </div>
+
+                        <div class="chrono-capsule-structure">
+                            <div class="chrono-capsule-title">⏱️ Lifecycle Duration Matrix</div>
+                            <div class="chrono-inputs-flex-row">
+                                <div class="sub-chrono-field">
+                                    <input type="number" id="days" name="days" class="interactive-input" value="30" min="0" required>
+                                    <label for="days">Days</label>
+                                </div>
+                                <div class="sub-chrono-field">
+                                    <input type="number" id="hours" name="hours" class="interactive-input" value="0" min="0" max="23" required>
+                                    <label for="hours">Hours</label>
+                                </div>
+                                <div class="sub-chrono-field">
+                                    <input type="number" id="minutes" name="minutes" class="interactive-input" value="0" min="0" max="59" required>
+                                    <label for="minutes">Mins</label>
+                                </div>
                             </div>
-                            <div class="sub-chrono-field">
-                                <input type="number" id="hours" name="hours" class="interactive-input" value="0" min="0" max="23" required>
-                                <label for="hours">Hours</label>
-                            </div>
-                            <div class="sub-chrono-field">
-                                <input type="number" id="minutes" name="minutes" class="interactive-input" value="0" min="0" max="59" required>
-                                <label for="minutes">Mins</label>
-                            </div>
+                        </div>
+
+                        <div class="input-node-layout">
+                            <label for="max_devices">Allowed Hardware Instances</label>
+                            <input type="number" id="max_devices" name="max_devices" class="interactive-input" value="1" min="1" required>
                         </div>
                     </div>
 
-                    <div class="input-node-layout">
-                        <label for="max_devices">Allowed Hardware Instances</label>
-                        <input type="number" id="max_devices" name="max_devices" class="interactive-input" value="1" min="1" required>
-                    </div>
-                </div>
+                    <button type="submit" name="action" value="generate" class="btn-submit-generator">Commit & Mint Access Token</button>
+                </section>
+            </form>
 
-                <button type="submit" name="action" value="generate" class="btn-submit-generator">Commit & Mint Access Token</button>
-            </section>
-        </form>
+            <!-- Add Reseller / Multi-Login Card (Only visible to Master Admin BILAL) -->
+            {% if current_role == 'master' %}
+            <form method="POST" action="">
+                <section class="dashboard-panel-card" style="border-color: rgba(255, 145, 0, 0.2);">
+                    <div class="panel-heading-block">
+                        <div class="panel-title-text" style="color: var(--warning);">👥 Add New Sub-Reseller Account</div>
+                    </div>
+                    <div class="control-matrix-grid">
+                        <div class="chrono-inputs-flex-row" style="grid-template-columns: 1fr 1fr;">
+                            <div class="input-node-layout">
+                                <label>Reseller Username</label>
+                                <input type="text" name="reseller_username" class="interactive-input" placeholder="New username..." required>
+                            </div>
+                            <div class="input-node-layout">
+                                <label>Reseller Password</label>
+                                <input type="password" name="reseller_password" class="interactive-input" placeholder="New password..." required>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" name="action" value="add_reseller" class="btn-submit-generator" style="background: linear-gradient(90deg, var(--warning), #ff6d00);">Register Sub-Reseller Node</button>
+                </section>
+            </form>
+            {% endif %}
+
+        </div>
 
         <!-- Data Logs Module -->
         <section class="dashboard-panel-card">
             <div class="panel-heading-block">
                 <div class="panel-title-text">📊 Active Credentials Directory</div>
+                {% if current_role == 'master' %}
                 <form method="POST" action="" style="display: inline; width: auto;">
                     <button type="submit" name="action" value="clear_all" class="btn-wipe-database" onclick="return confirm('Purge complete dataset?');">Purge Complete Dataset</button>
                 </form>
+                {% endif %}
             </div>
 
             <div class="terminal-table-container">
                 <table class="terminal-datatable">
                     <thead>
                         <tr>
-                            <th>Registry Access Token</th>
-                            <th>HWID Footprint Quota</th>
-                            <th>Expiration Scope</th>
-                            <th>Administrative Override</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if keys %}
-                            {% for key in keys %}
-                            <tr>
-                                <td class="crypto-key-render">{{ key.name }}</td>
-                                <td><span class="device-quota-pill">{{ key.used }} / {{ key.devices }} Node</span></td>
-                                <td><span class="timer-countdown-string">{{ key.duration_string }}</span></td>
-                                <td>
-                                    <form method="POST" action="" class="actions-flex-wrapper">
-                                        <input type="hidden" name="key_name" value="{{ key.name }}">
-                                        <button type="submit" name="action" value="reset_hwid" class="btn-action-reset" onclick="return confirm('Reset HWID connections for this key?');">Reset HWID</button>
-                                        <button type="submit" name="action" value="delete_key" class="btn-action-revoke" onclick="return confirm('Delete this key permanently?');">Revoke</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="4" class="fallback-empty-state">
-                                    <p>Null Reference: No cryptographic tokens found allocated in the secure table cluster.</p>
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-    </div>
-
-</body>
-  </html>
-                                  
+                            <th>Registry Access To
