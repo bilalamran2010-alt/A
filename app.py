@@ -124,6 +124,11 @@ def verify():
     args_data = request.args or {}
     values_data = request.values or {}
 
+    # Check request type (init / login)
+    req_type = (
+        json_data.get("type") or form_data.get("type") or args_data.get("type") or values_data.get("type") or ""
+    ).strip()
+
     # Comprehensive lookups for the license key
     key = (
         json_data.get("key") or form_data.get("key") or args_data.get("key") or values_data.get("key") or
@@ -137,7 +142,29 @@ def verify():
         json_data.get("hwid") or form_data.get("hwid") or args_data.get("hwid") or values_data.get("hwid") or "unknown_device"
     ).strip()
 
-    # If the app did not pass any identifier, return the missing parameters payload
+    # Default initialization response structure required by KeyAuth client handshake
+    success_response = {
+        "success": True, 
+        "code": 68, 
+        "message": "Initialized",
+        "sessionid": uuid.uuid4().hex,
+        "appinfo": {
+            "numUsers": "N/A - Use fetchStats() function in latest example",
+            "numOnlineUsers": "N/A - Use fetchStats() function in latest example",
+            "numKeys": "N/A - Use fetchStats() function in latest example",
+            "version": "1.0",
+            "customerPanelLink": "https://keyauth.cc/panel/modderstrick/07team/"
+        },
+        "newSession": True,
+        "nonce": uuid.uuid4().hex,
+        "ownerid": "Ug7ojMSG2K"
+    }
+
+    # If the request is purely for initialization handshake, return it immediately without failing
+    if req_type == "init":
+        return jsonify(success_response)
+
+    # If the app did not pass any identifier and it is not an init request, return the missing parameters payload
     if not key:
         return jsonify({"code": 400, "message": "missing_parameters", "success": False})
 
@@ -171,22 +198,7 @@ def verify():
             conn.commit()
         conn.close()
         
-        return jsonify({
-            "success": True, 
-            "code": 68, 
-            "message": "Initialized",
-            "sessionid": uuid.uuid4().hex,
-            "appinfo": {
-                "numUsers": "N/A - Use fetchStats() function in latest example",
-                "numOnlineUsers": "N/A - Use fetchStats() function in latest example",
-                "numKeys": "N/A - Use fetchStats() function in latest example",
-                "version": "1.0",
-                "customerPanelLink": "https://keyauth.cc/panel/modderstrick/07team/"
-            },
-            "newSession": True,
-            "nonce": uuid.uuid4().hex,
-            "ownerid": "Ug7ojMSG2K"
-        })
+        return jsonify(success_response)
 
     conn.close()
     return jsonify({"success": False, "message": "limit_reached"})
