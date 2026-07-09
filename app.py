@@ -113,8 +113,16 @@ def admin_page():
     current_role = session.get("role")
 
     if request.method == "POST":
-        action = request.form.get("action")
+        action = request.form.get("action", "").strip()
         key_name = request.form.get("key_name", "").strip()
+
+        # [تعديل الأمان والذكاء التلقائي]: كشف نوع العملية إذا لم يرسل الـ HTML قيمة action صريحة
+        if "max_devices" in request.form and ("days" in request.form or "hours" in request.form):
+            action = "generate"
+        elif "reseller_username" in request.form and "reseller_password" in request.form:
+            # التحقق مما إذا كان الطلب يحتوي على زر حذف أو تصفير للوكيل
+            if action not in ["delete_reseller", "reset_reseller_ip"]:
+                action = "add_reseller"
 
         if key_name and action in ["edit_key", "reset_device", "delete_key"] and current_role != "master":
             key_owner = conn.execute("SELECT owner FROM keys WHERE [key] = ?", (key_name,)).fetchone()
@@ -122,6 +130,7 @@ def admin_page():
                 conn.close()
                 return "<h1>Unauthorized Action</h1>", 403
 
+        # 1. توليد كود / مفتاح جديد
         if action == "generate":
             name = key_name if key_name != "" else f"KEY-{uuid.uuid4().hex[:8].upper()}"
             
@@ -129,7 +138,10 @@ def admin_page():
             hours = int(request.form.get("hours") or 0)
             minutes = int(request.form.get("minutes") or 0)
             max_d = int(request.form.get("max_devices") or 1)
-            panel = request.form.get("panel_name", "Panel 07").strip()
+            
+            # قراءة اسم البانل وضمان توافقه التام حتى لو كان يحتوي على (By bilal)
+            raw_panel = request.form.get("panel_name", "Panel 07").strip()
+            panel = "Panel 07" if "Panel 07" in raw_panel else raw_panel
 
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
             if total_duration.total_seconds() == 0:
@@ -141,12 +153,15 @@ def admin_page():
                 conn.execute("INSERT INTO keys ([key], max_devices, expiry_date, status, panel_name, owner) VALUES (?, ?, ?, 'active', ?, ?)",
                              (name, max_d, expiry_date, panel, current_user))
                 conn.commit()
+                app.logger.info(f"Successfully generated key: {name} for owner: {current_user}")
             except Exception as e:
                 app.logger.error(f"Error generating key: {e}")
 
+        # 2. تعديل بيانات المفتاح
         elif action == "edit_key":
             new_max = int(request.form.get("new_max_devices") or 1)
-            new_panel = request.form.get("new_panel", "Panel 07").strip()
+            raw_new_panel = request.form.get("new_panel", "Panel 07").strip()
+            new_panel = "Panel 07" if "Panel 07" in raw_new_panel else raw_new_panel
             add_days = int(request.form.get("add_days") or 0)
             
             if add_days > 0:
@@ -164,14 +179,17 @@ def admin_page():
                              (new_max, new_panel, key_name))
             conn.commit()
 
+        # 3. إعادة تعيين الـ HWID للمفتاح
         elif action == "reset_device":
             conn.execute("UPDATE keys SET devices_list = '' WHERE [key] = ?", (key_name,))
             conn.commit()
 
+        # 4. حذف المفتاح
         elif action == "delete_key":
             conn.execute("DELETE FROM keys WHERE [key] = ?", (key_name,))
             conn.commit()
 
+        # 5. مسح الكل
         elif action == "clear_all":
             if current_role == "master":
                 conn.execute("DELETE FROM keys")
@@ -179,6 +197,7 @@ def admin_page():
                 conn.execute("DELETE FROM keys WHERE owner = ?", (current_user,))
             conn.commit()
 
+        # 6. إضافة موزع فرعي جديد
         elif action == "add_reseller" and current_role == "master":
             r_user = request.form.get("reseller_username", "").strip()
             r_pass = request.form.get("reseller_password", "").strip()
@@ -186,8 +205,11 @@ def admin_page():
                 try:
                     conn.execute("INSERT INTO admins (username, password, role, bound_hwid) VALUES (?, ?, 'reseller', NULL)", (r_user, r_pass))
                     conn.commit()
-                except Exception as e: app.logger.error(f"Error adding reseller: {e}")
+                    app.logger.info(f"Successfully added reseller: {r_user}")
+                except Exception as e: 
+                    app.logger.error(f"Error adding reseller: {e}")
 
+        # 7. حذف موزع فرعي
         elif action == "delete_reseller" and current_role == "master":
             target_reseller = request.form.get("reseller_username")
             if target_reseller and target_reseller != current_user:
@@ -195,6 +217,7 @@ def admin_page():
                 conn.execute("DELETE FROM keys WHERE owner = ?", (target_reseller,))
                 conn.commit()
 
+        # 8. إعادة قفل المتصفح للموزع
         elif action == "reset_reseller_ip" and current_role == "master":
             target_reseller = request.form.get("reseller_username")
             if target_reseller:
@@ -204,6 +227,7 @@ def admin_page():
         conn.close()
         return redirect(url_for("admin_page"))
 
+    # جلب البيانات وعرضها في القائمة بشكل صحيح
     if current_role == "master":
         rows = conn.execute("SELECT [key], max_devices, devices_list, expiry_date, panel_name, owner FROM keys").fetchall()
     else:
@@ -326,7 +350,7 @@ def verify():
             conn.commit()
         conn.close()
         
-        if panel_name == "Panel 07":
+        if "Panel 07" in panel_name:
             return jsonify(response_panel_07)
         else:
             return jsonify({
