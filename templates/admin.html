@@ -474,7 +474,8 @@
         <div style="display: flex; flex-direction: column; gap: 25px;">
             
             <!-- Generation Form Module -->
-            <form method="POST" action="">
+            <form method="POST" action="/admin">
+                <input type="hidden" name="action" value="generate">
                 <section class="dashboard-panel-card">
                     <div class="panel-heading-block">
                         <div class="panel-title-text">⚡ Encryption Key Core Provisioner</div>
@@ -522,13 +523,14 @@
                         </div>
                     </div>
 
-                    <button type="submit" name="action" value="generate" class="btn-submit-generator">Commit & Mint Access Token</button>
+                    <button type="submit" class="btn-submit-generator">Commit & Mint Access Token</button>
                 </section>
             </form>
 
             <!-- Add Reseller / Multi-Login Card (Only visible to Master Admin) -->
             {% if current_role == 'master' %}
-            <form method="POST" action="">
+            <form method="POST" action="/admin">
+                <input type="hidden" name="action" value="add_reseller">
                 <section class="dashboard-panel-card" style="border-color: rgba(255, 145, 0, 0.2);">
                     <div class="panel-heading-block">
                         <div class="panel-title-text" style="color: var(--warning);">👥 Add New Sub-Reseller Account</div>
@@ -537,15 +539,15 @@
                         <div class="chrono-inputs-flex-row" style="grid-template-columns: 1fr 1fr;">
                             <div class="input-node-layout">
                                 <label>Reseller Username</label>
-                                <input type="text" name="reseller_username" class="interactive-input" placeholder="New username..." required>
+                                <input type="text" name="reseller_username" class="interactive-input" placeholder="New username..." required autocomplete="off">
                             </div>
                             <div class="input-node-layout">
                                 <label>Reseller Password</label>
-                                <input type="password" name="reseller_password" class="interactive-input" placeholder="New password..." required>
+                                <input type="text" name="reseller_password" class="interactive-input" placeholder="New password..." required>
                             </div>
                         </div>
                     </div>
-                    <button type="submit" name="action" value="add_reseller" class="btn-submit-generator" style="background: linear-gradient(90deg, var(--warning), #ff6d00);">Register Sub-Reseller Node</button>
+                    <button type="submit" class="btn-submit-generator" style="background: linear-gradient(90deg, var(--warning), #ff6d00);">Register Sub-Reseller Node</button>
                 </section>
             </form>
             {% endif %}
@@ -557,14 +559,12 @@
             <div class="panel-heading-block">
                 <div class="panel-title-text">📊 Active Credentials Directory</div>
                 {% if current_role == 'master' %}
-                <form method="POST" action="" style="display: inline; width: auto;">
-                    <button type="submit" name="action" value="clear_all" class="btn-wipe-database" onclick="return confirm('Purge complete dataset?');">Purge Complete Dataset</button>
+                <form method="POST" action="/admin" style="display: inline; width: auto;">
+                    <input type="hidden" name="action" value="clear_all">
+                    <button type="submit" class="btn-wipe-database" onclick="return confirm('Purge complete dataset?');">Purge Complete Dataset</button>
                 </form>
                 {% endif %}
             </div>
 
             <div class="terminal-table-container">
-                <table class="terminal-datatable">
-                    <thead>
-                        <tr>
-                            <th>Secret Access Key Token<
+             
