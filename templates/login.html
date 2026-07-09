@@ -16,6 +16,7 @@
             --text-main: #f1f0f7;
             --text-muted: #82809a;
             --border-color: rgba(255, 255, 255, 0.06);
+            --danger: #ff1744;
         }
 
         * {
@@ -87,6 +88,19 @@
             -webkit-backdrop-filter: blur(20px);
             padding: 30px 25px;
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Flash Error Messages Node */
+        .alert-error-node {
+            background: rgba(255, 23, 68, 0.08);
+            border: 1px solid rgba(255, 23, 68, 0.2);
+            color: var(--danger);
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
         }
 
         .form-group {
@@ -229,6 +243,16 @@
     </div>
 
     <div class="login-card">
+        
+        <!-- Jinja2 Flash Message Handler for Python Server -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert-error-node">⚠️ {{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
         <form method="POST" action="/" id="loginForm">
             <!-- Hidden field for hardware session lock -->
             <input type="hidden" id="browser_fingerprint" name="browser_fingerprint">
