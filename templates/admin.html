@@ -310,7 +310,6 @@
             color: #e2e0f0;
             vertical-align: middle;
         }
-
         .crypto-key-render {
             font-family: 'JetBrains Mono', monospace;
             color: var(--accent-cyan);
@@ -485,9 +484,11 @@
                             <label for="panel_name">Target Server Response Route</label>
                             <select id="panel_name" name="panel_name" class="interactive-select">
                                 <option value="Panel 07" selected>Panel 07 (By bilal)</option>
+                                <option value="BKL SENSI">BKL SENSI  (Under Maintenance)</option>
+                                <option value="Panel x3">Panel x3 (Under Maintenance)</option>
+                                <option value="VIP Panel">VIP Panel (Under Maintenance)</option>
                             </select>
                         </div>
-
                         <div class="chrono-capsule-structure">
                             <div class="chrono-capsule-title">⏱️ Lifecycle Duration Matrix</div>
                             <div class="chrono-inputs-flex-row">
@@ -584,17 +585,14 @@
                                 </td>
                                 <td>
                                     <div class="actions-flex-wrapper">
-                                        <!-- تصفير الـ HWID -->
                                         <form method="POST" action="/admin" style="display:inline;">
                                             <input type="hidden" name="action" value="reset_device">
                                             <input type="hidden" name="key_name" value="{{ key.name }}">
                                             <button type="submit" class="btn-action-reset">Reset</button>
                                         </form>
 
-                                        <!-- تعديل المفتاح من خلال المودال -->
                                         <button type="button" class="btn-action-edit" onclick="openEditModal('{{ key.name }}', '{{ key.devices }}', '{{ key.panel_name }}')">Edit</button>
 
-                                        <!-- حذف المفتاح -->
                                         <form method="POST" action="/admin" style="display:inline;">
                                             <input type="hidden" name="action" value="delete_key">
                                             <input type="hidden" name="key_name" value="{{ key.name }}">
@@ -614,7 +612,6 @@
             </div>
         </section>
 
-        <!-- جدول التحكم في الموزعين (يظهر للـ Master فقط) -->
         {% if current_role == 'master' and resellers %}
         <section class="dashboard-panel-card" style="border-color: rgba(0, 229, 255, 0.1);">
             <div class="panel-heading-block">
@@ -640,14 +637,12 @@
                             <td><span class="device-quota-pill" style="background: rgba(157, 92, 255, 0.1); color: #cbafff;">{{ reseller.key_count }} Keys</span></td>
                             <td>
                                 <div class="actions-flex-wrapper">
-                                    <!-- تصفير بصمة الموزع -->
                                     <form method="POST" action="/admin" style="display:inline;">
                                         <input type="hidden" name="action" value="reset_reseller_ip">
                                         <input type="hidden" name="reseller_username" value="{{ reseller.username }}">
                                         <button type="submit" class="btn-action-reset" style="color: var(--warning); border-color: rgba(255, 145, 0, 0.2);">Reset HWID</button>
                                     </form>
 
-                                    <!-- حذف الموزع نهائياً -->
                                     <form method="POST" action="/admin" style="display:inline;">
                                         <input type="hidden" name="action" value="delete_reseller">
                                         <input type="hidden" name="reseller_username" value="{{ reseller.username }}">
@@ -665,7 +660,7 @@
 
     </div>
 
-    <!-- نافذة تعديل المفاتيح المنبثقة (Micro Modal) -->
+    <!-- Micro Modal -->
     <div id="editModal" class="micro-modal">
         <div class="micro-modal-content">
             <div class="modal-header-flex">
@@ -685,6 +680,9 @@
                         <label>Target Route</label>
                         <select id="modal_panel_name" name="new_panel" class="interactive-select">
                             <option value="Panel 07">Panel 07</option>
+                            <option value="BKL SENSI">BKL SENSI</option>
+                            <option value="Panel x3">Panel x3</option>
+                            <option value="VIP Panel">VIP Panel</option>
                         </select>
                     </div>
                     <div class="input-node-layout">
@@ -697,7 +695,7 @@
         </div>
     </div>
 
-    <!-- سكريبت تشغيل النوافذ المنبثقة -->
+    <!-- Modal Scripts -->
     <script>
         function openEditModal(keyName, maxDevices, panelName) {
             document.getElementById('modal_key_name').value = keyName;
