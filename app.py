@@ -144,7 +144,6 @@ def admin_page():
             minutes = int(request.form.get("minutes") or 0)
             max_d = int(request.form.get("max_devices") or 1)
             
-            # هنا يتم استقبال اسم البانل المختار مباشرة من القائمة بدون تعديل قسري
             panel = request.form.get("panel_name", "Panel 07").strip()
 
             total_duration = timedelta(days=days, hours=hours, minutes=minutes)
@@ -352,7 +351,6 @@ def verify():
             conn.execute("UPDATE keys SET devices_list = ? WHERE [key] = ?", (",".join(devices), key))
             conn.execute("COMMIT")
         conn.close()
-        
         
         if panel_name == "Panel 07":
             return jsonify(response_panel_07)
