@@ -299,6 +299,7 @@ def verify():
         json_data.get("hwid") or form_data.get("hwid") or args_data.get("hwid") or values_data.get("hwid") or "unknown_device"
     ).strip()
 
+    # 1. رد لوحة Panel 07 القياسي
     response_panel_07 = {
         "success": True, 
         "code": 68, 
@@ -314,6 +315,20 @@ def verify():
         "newSession": True,
         "nonce": uuid.uuid4().hex,
         "ownerid": "Ug7ojMSG2K"
+    }
+
+    # 2. رد لوحة bkl sensi المخصص
+    response_bkl_sensi = {
+        "success": True,
+        "status": "success",
+        "code": 200,
+        "message": "Access Granted",
+        "panel": "bkl sensi",
+        "user_info": {
+            "username": key,
+            "hwid": device_id,
+            "status": "active"
+        }
     }
 
     if req_type == "init":
@@ -352,15 +367,13 @@ def verify():
             conn.execute("COMMIT")
         conn.close()
         
-        if panel_name == "Panel 07":
-            return jsonify(response_panel_07)
+        # التوجيه بناءً على لوحة المفتاح الفعلي
+        if panel_name == "bkl sensi":
+            response_bkl_sensi["user_info"]["expiry"] = expiry
+            response_bkl_sensi["expiry_date"] = expiry
+            return jsonify(response_bkl_sensi)
         else:
-            return jsonify({
-                "success": True, 
-                "message": f"Authenticated successfully via {panel_name}",
-                "expiry": expiry,
-                "panel": panel_name
-            })
+            return jsonify(response_panel_07)
 
     conn.close()
     return jsonify({"success": False, "message": "limit_reached"})
