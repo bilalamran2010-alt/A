@@ -290,7 +290,7 @@ def verify():
 
     req_type = (json_data.get("type") or form_data.get("type") or args_data.get("type") or values_data.get("type") or "").strip()
     
-    # التعرف على المفتاح بكافة التسميات الممكنة
+    # Check all possible parameter keys
     key = (
         json_data.get("key") or form_data.get("key") or args_data.get("key") or values_data.get("key") or
         json_data.get("username") or form_data.get("username") or args_data.get("username") or values_data.get("username") or
@@ -303,7 +303,7 @@ def verify():
         json_data.get("hwid") or form_data.get("hwid") or args_data.get("hwid") or values_data.get("hwid") or "unknown_device"
     ).strip()
 
-    # 1. رد لوحة Panel 07 القياسي
+    # 1. Panel 07 Default Response
     response_panel_07 = {
         "success": True, 
         "code": 68, 
@@ -321,7 +321,7 @@ def verify():
         "ownerid": "Ug7ojMSG2K"
     }
 
-    # 2. رد لوحة bkl sensi المخصص
+    # 2. BKL SENSI Custom Response
     response_bkl_sensi = {
         "success": True,
         "status": "success",
@@ -338,31 +338,38 @@ def verify():
     if req_type == "init":
         return jsonify(response_panel_07)
 
-    # إذا لم يُرسل مفتاح في الأساس، نرجع رد فشل متوافق مع البانل الثالثة لتجنب انهيار التطبيق
+    # Return registered failure if no key is supplied
     if not key:
         return jsonify({"status": False, "reason": "USER OR GAME NOT REGISTERED"})
 
     conn = get_db_connection()
-    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status, panel_name FROM keys WHERE [key] = ?", (key,)).fetchone()
+    # Case-insensitive query using COLLATE NOCASE to prevent mismatch issues
+    row = conn.execute("SELECT max_devices, devices_list, expiry_date, status, panel_name FROM keys WHERE [key] = ? COLLATE NOCASE", (key,)).fetchone()
 
-    # في حال لم يتم العثور على المفتاح في قاعدة البيانات
+    # Key not found in SQLite Database
     if not row:
         conn.close()
         return jsonify({"status": False, "reason": "USER OR GAME NOT REGISTERED"})
 
     max_devs, devices_list, expiry, status, panel_name = row
     
-    # فحص لوحة الـ Bull Team
-    is_bull_team = (panel_name == "Bull Team" or panel_name == "bullteam")
+    # Process panel name clean check
+    panel_clean = panel_name.strip() if panel_name else ""
+    
+    # Check if Panel x3 (The 3rd option) or Bull Team is chosen
+    is_bull_team = (panel_clean == "Panel x3" or "x3" in panel_clean.lower() or "bull" in panel_clean.lower())
+    
+    # Check if BKL SENSI (Case Insensitive) is chosen
+    is_bkl_sensi = (panel_clean.upper() == "BKL SENSI")
 
-    # في حال كان المفتاح محظوراً
+    # Key is banned check
     if status == "banned":
         conn.close()
         if is_bull_team:
             return jsonify({"status": False, "reason": "YOUR ACCOUNT IS BANNED"})
         return jsonify({"success": False, "message": "banned"})
 
-    # فحص تاريخ الصلاحية
+    # Validate expiration dates
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
     except:
@@ -377,23 +384,23 @@ def verify():
             return jsonify({"status": False, "reason": "KEY EXPIRED"})
         return jsonify({"success": False, "message": "expired"})
 
-    # فحص حد الأجهزة المتصلة
+    # Check hardware instance and device limits
     devices = [d for d in (devices_list or "").split(",") if d]
     if device_id in devices or len(devices) < max_devs:
         if device_id not in devices and device_id != "unknown_device":
             devices.append(device_id)
-            conn.execute("UPDATE keys SET devices_list = ? WHERE [key] = ?", (",".join(devices), key))
+            conn.execute("UPDATE keys SET devices_list = ? WHERE [key] = ? COLLATE NOCASE", (",".join(devices), key))
             conn.execute("COMMIT")
         conn.close()
         
-        # التوجيه بناءً على لوحة المفتاح الفعلي
-        if panel_name == "bkl sensi":
+        # Route to BKL SENSI response
+        if is_bkl_sensi:
             response_bkl_sensi["user_info"]["expiry"] = expiry
             response_bkl_sensi["expiry_date"] = expiry
             return jsonify(response_bkl_sensi)
             
+        # Route to Bull Team (Panel 3 / Panel x3) response
         elif is_bull_team:
-            # مطابقة رد النجاح للصور الملتقطة (Boolean True مع كائن data والخصائص)
             dynamic_real_token = f"FREEFIRE-help-2k-subscrib-{uuid.uuid4().hex}-{uuid.uuid4().hex[:32]}"
             dynamic_token = uuid.uuid4().hex
             random_rng = random.randint(1000000000, 2147483647)
@@ -423,10 +430,11 @@ def verify():
             }
             return jsonify(response_bull_team)
             
+        # Default route (Panel 07)
         else:
             return jsonify(response_panel_07)
 
-    # في حال تجاوز حد الأجهزة
+    # Maximum hardware limit reached
     conn.close()
     if is_bull_team:
         return jsonify({"status": False, "reason": "DEVICE LIMIT REACHED"})
