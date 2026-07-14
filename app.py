@@ -1,5 +1,6 @@
 import os
 import uuid
+import random
 import sqlite3
 import logging
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
@@ -288,10 +289,13 @@ def verify():
     values_data = request.values or {}
 
     req_type = (json_data.get("type") or form_data.get("type") or args_data.get("type") or values_data.get("type") or "").strip()
+    
+    # التعرف على المفتاح بكافة التسميات الممكنة
     key = (
         json_data.get("key") or form_data.get("key") or args_data.get("key") or values_data.get("key") or
         json_data.get("username") or form_data.get("username") or args_data.get("username") or values_data.get("username") or
-        json_data.get("license") or form_data.get("license") or args_data.get("license") or values_data.get("license") or ""
+        json_data.get("license") or form_data.get("license") or args_data.get("license") or values_data.get("license") or
+        json_data.get("user") or form_data.get("user") or args_data.get("user") or values_data.get("user") or ""
     ).strip()
 
     device_id = (
@@ -334,31 +338,46 @@ def verify():
     if req_type == "init":
         return jsonify(response_panel_07)
 
+    # إذا لم يُرسل مفتاح في الأساس، نرجع رد فشل متوافق مع البانل الثالثة لتجنب انهيار التطبيق
     if not key:
-        return jsonify({"code": 400, "message": "missing_parameters", "success": False})
+        return jsonify({"status": False, "reason": "USER OR GAME NOT REGISTERED"})
 
     conn = get_db_connection()
     row = conn.execute("SELECT max_devices, devices_list, expiry_date, status, panel_name FROM keys WHERE [key] = ?", (key,)).fetchone()
 
+    # في حال لم يتم العثور على المفتاح في قاعدة البيانات
     if not row:
         conn.close()
-        return jsonify({"success": False, "message": "Invalid key or not registered!"})
+        return jsonify({"status": False, "reason": "USER OR GAME NOT REGISTERED"})
 
     max_devs, devices_list, expiry, status, panel_name = row
+    
+    # فحص لوحة الـ Bull Team
+    is_bull_team = (panel_name == "Bull Team" or panel_name == "bullteam")
+
+    # في حال كان المفتاح محظوراً
     if status == "banned":
         conn.close()
+        if is_bull_team:
+            return jsonify({"status": False, "reason": "YOUR ACCOUNT IS BANNED"})
         return jsonify({"success": False, "message": "banned"})
 
+    # فحص تاريخ الصلاحية
     try:
         expiry_dt = datetime.strptime(expiry, '%Y-%m-%d %H:%M:%S')
     except:
         conn.close()
+        if is_bull_team:
+            return jsonify({"status": False, "reason": "DATE CALCULATION ERROR"})
         return jsonify({"success": False, "message": "date_error"})
 
     if datetime.now() > expiry_dt:
         conn.close()
+        if is_bull_team:
+            return jsonify({"status": False, "reason": "KEY EXPIRED"})
         return jsonify({"success": False, "message": "expired"})
 
+    # فحص حد الأجهزة المتصلة
     devices = [d for d in (devices_list or "").split(",") if d]
     if device_id in devices or len(devices) < max_devs:
         if device_id not in devices and device_id != "unknown_device":
@@ -372,10 +391,45 @@ def verify():
             response_bkl_sensi["user_info"]["expiry"] = expiry
             response_bkl_sensi["expiry_date"] = expiry
             return jsonify(response_bkl_sensi)
+            
+        elif is_bull_team:
+            # مطابقة رد النجاح للصور الملتقطة (Boolean True مع كائن data والخصائص)
+            dynamic_real_token = f"FREEFIRE-help-2k-subscrib-{uuid.uuid4().hex}-{uuid.uuid4().hex[:32]}"
+            dynamic_token = uuid.uuid4().hex
+            random_rng = random.randint(1000000000, 2147483647)
+
+            response_bull_team = {
+                "status": True,
+                "data": {
+                    "real": dynamic_real_token,
+                    "token": dynamic_token,
+                    "modname": "VIP MOD",
+                    "mod_status": "Safe",
+                    "credit": "MOD STATUS :- 100% SAFE",
+                    "ESP": "on",
+                    "Item": "on",
+                    "AIM": "on",
+                    "SilentAim": "on",
+                    "BulletTrack": "on",
+                    "Floating": "on",
+                    "Memory": "on",
+                    "Setting": "on",
+                    "expired_date": expiry,
+                    "EXP": expiry,
+                    "exdate": expiry,
+                    "device": str(max_devs),
+                    "rng": random_rng
+                }
+            }
+            return jsonify(response_bull_team)
+            
         else:
             return jsonify(response_panel_07)
 
+    # في حال تجاوز حد الأجهزة
     conn.close()
+    if is_bull_team:
+        return jsonify({"status": False, "reason": "DEVICE LIMIT REACHED"})
     return jsonify({"success": False, "message": "limit_reached"})
 
 if __name__ == "__main__":
